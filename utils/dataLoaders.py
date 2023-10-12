@@ -1,4 +1,5 @@
 import torch
+
 import torchvision.datasets as datasets
 from torch.utils.data import DataLoader
 import torchvision.transforms as transforms
@@ -28,7 +29,12 @@ class RotMnistDataset(torch.utils.data.Dataset):
         return self.data.shape[0]
 
 
-def get_standard_mnist_dataloader(root='datasets/', batch_size=64, mean=0.5, std=0.5, shuffle=True):
+def get_standard_mnist_dataloader(root='datasets/',
+                                  batch_size=64,
+                                  mean=0.5,
+                                  std=0.5,
+                                  shuffle=True) -> (torch.utils.data.Dataset, torch.utils.data.DataLoader):
+
     transform = transforms.Compose(
         [transforms.ToTensor(), transforms.Normalize((mean,), (std,))]
     )
@@ -38,7 +44,11 @@ def get_standard_mnist_dataloader(root='datasets/', batch_size=64, mean=0.5, std
     return dataset, data_loader
 
 
-def get_rotated_mnist_dataloader(root='datasets/RotMNIST', batch_size=64, mean=0.5, std=0.5, shuffle=True):
+def get_rotated_mnist_dataloader(root='datasets/RotMNIST',
+                                 batch_size=64,
+                                 mean=0.5,
+                                 std=0.5,
+                                 shuffle=True) -> (torch.utils.data.Dataset, torch.utils.data.DataLoader):
     transform = transforms.Compose(
         [transforms.ToTensor(), transforms.Normalize((mean,), (std,))]
     )
