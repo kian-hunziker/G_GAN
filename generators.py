@@ -16,7 +16,7 @@ from torch.nn.utils import spectral_norm as SN
 
 
 class FiLM(nn.Module):
-    def __init__(self, input_shape):
+    def __init__(self, input_shape: list):
         super(FiLM, self).__init__()
         assert isinstance(input_shape, list)
         feature_map_shape = input_shape[0]
@@ -30,10 +30,10 @@ class FiLM(nn.Module):
         self.width = feature_map_shape[2]
         self.n_feature_maps = feature_map_shape[0]
 
-        assert(int(self.n_feature_maps) == FiLM_gamma_shape[0])
-        assert(int(self.n_feature_maps) == FiLM_beta_shape[0])
+        assert (int(self.n_feature_maps) == FiLM_gamma_shape[0])
+        assert (int(self.n_feature_maps) == FiLM_beta_shape[0])
 
-    def forward(self, x):
+    def forward(self, x: list) -> torch.Tensor:
         assert isinstance(x, list)
         conv_output, cla = x
 
@@ -56,7 +56,11 @@ class FiLM(nn.Module):
         return (1 + FiLM_gamma) * conv_output + FiLM_beta
 
 
-def CCBN(feature_map_shape, proj_dim, group, specnorm=True, initialization='orthogonal'):
+def CCBN(feature_map_shape: list,
+         proj_dim: int,
+         group: str,
+         specnorm: bool = True,
+         initialization: bool = 'orthogonal') -> FiLM:
     """
 
     :param feature_map_shape: [no_channels, height, width]
@@ -86,7 +90,7 @@ def CCBN(feature_map_shape, proj_dim, group, specnorm=True, initialization='orth
 
 
 class Generator(nn.Module):
-    def __init__(self, n_classes=10, gen_arch='z2_rot_mnist', latent_dim=64):
+    def __init__(self, n_classes: int = 10, gen_arch: str = 'z2_rot_mnist', latent_dim: int = 64):
         super(Generator, self).__init__()
         self.gen_arch = gen_arch
         self.channel_scale_factor = 1
@@ -136,7 +140,16 @@ class Generator(nn.Module):
                                       padding='same',
                                       bias=False))
 
-    def forward(self, latent_noise, label):
+    def forward(self, latent_noise: torch.Tensor, label: torch.Tensor) -> torch.Tensor:
+        '''
+        cla: concatenated vector [latent_noise, embedded_labels]
+        gen: reshaped input to convolutional layers: [batch_size, (proj_shape)]
+        for Z2 gen has shape [batch_size, 128, 7, 7]
+
+        :param latent_noise: noise to synthesize images from [batch_size, latent_dim]
+        :param label: class labels one hot encoded [batch_size, n_classes]
+        :return: synthesized images [batch_size, n_channels, height, width]
+        '''
         if self.gen_arch == 'z2_rot_mnist':
             label_projection = self.label_projection_layer(label)
             cla = torch.cat((latent_noise, label_projection), dim=1)
