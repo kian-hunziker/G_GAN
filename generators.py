@@ -1,17 +1,6 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-import torch.optim as optim
-import torchvision
-import torchvision.datasets as datasets
-from torch.utils.data import DataLoader
-import torchvision.transforms as transforms
-from torch.utils.tensorboard import SummaryWriter
-import matplotlib.pyplot as plt
-import scipy.io as sio
-import numpy as np
-import datetime
-import utils.dataLoaders
 from torch.nn.utils import spectral_norm as SN
 from blocks import CCBN
 from layers import FiLM
