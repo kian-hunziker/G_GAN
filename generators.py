@@ -14,6 +14,7 @@ import datetime
 import utils.dataLoaders
 from torch.nn.utils import spectral_norm as SN
 from blocks import CCBN
+from layers import FiLM
 
 
 class Generator(nn.Module):
@@ -108,6 +109,16 @@ class Generator(nn.Module):
         return out
 
 
+def init_generator_weights_z2(m):
+    if isinstance(m, nn.Conv2d):
+        nn.init.orthogonal(m.weight)
+        print(f'initialized {m}')
+    elif isinstance(m, FiLM):
+        nn.init.orthogonal(m.beta_linear.weight)
+        nn.init.orthogonal(m.gamma_linear.weight)
+        print(f'initialised film layer {m}')
+
+
 def generator_debug_test():
     gen = Generator()
     batch_size = 32
@@ -118,3 +129,10 @@ def generator_debug_test():
 
     out = gen(noise, labels)
     print(out.shape)
+
+def generator_initialisation_test():
+    gen = Generator()
+    gen.apply(init_generator_weights_z2)
+    print('great success!')
+
+#generator_initialisation_test()
