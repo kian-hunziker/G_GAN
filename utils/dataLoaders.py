@@ -10,18 +10,25 @@ import utils.rotateMNIST
 
 
 class RotMnistDataset(torch.utils.data.Dataset):
-    def __init__(self, root, transform=transforms.ToTensor()):
+    def __init__(self, root, transform=transforms.ToTensor(), one_hot_encode=False):
         self.data_path = root
         self.data = np.load(self.data_path + '/images.npy')
         self.targets = np.load(self.data_path + '/labels.npy')
         self.transform = transform
+        self.one_hot_encode = one_hot_encode
+        self.n_classes = 10
 
     def __getitem__(self, index):
         x = self.data[index]
-        y = self.targets[index]
 
         if self.transform:
             x = self.transform(x)
+
+        if self.one_hot_encode is True:
+            y = torch.zeros(self.n_classes)
+            y[self.targets[index]] = 1
+        else:
+            y = self.targets[index]
 
         return x, y
 
@@ -48,7 +55,8 @@ def get_rotated_mnist_dataloader(root='datasets/RotMNIST',
                                  batch_size=64,
                                  mean=0.5,
                                  std=0.5,
-                                 shuffle=True) -> (torch.utils.data.Dataset, torch.utils.data.DataLoader):
+                                 shuffle=True,
+                                 one_hot_encode=False) -> (torch.utils.data.Dataset, torch.utils.data.DataLoader):
     transform = transforms.Compose(
         [transforms.ToTensor(), transforms.Normalize((mean,), (std,))]
     )
@@ -59,7 +67,7 @@ def get_rotated_mnist_dataloader(root='datasets/RotMNIST',
         print(f'generating rotated MNIST training data')
         utils.rotateMNIST.generate_rotated_mnist_dataset(dir_path=root, num_examples=60000, num_rotations=8, max_angle=180)
 
-    dataset = RotMnistDataset(root=root, transform=transform)
+    dataset = RotMnistDataset(root=root, transform=transform, one_hot_encode=one_hot_encode)
     data_loader = torch.utils.data.DataLoader(dataset, batch_size=batch_size, shuffle=shuffle)
 
     return dataset, data_loader
@@ -67,19 +75,32 @@ def get_rotated_mnist_dataloader(root='datasets/RotMNIST',
 
 def rot_mnist_test():
     batch_size = 8
+    one_hot_encode = True
 
-    dataset, data_loader = get_rotated_mnist_dataloader(root='../datasets/RotMNIST')
+    dataset, data_loader = get_rotated_mnist_dataloader(root='../datasets/RotMNIST',
+                                                        batch_size=batch_size,
+                                                        one_hot_encode=one_hot_encode)
 
     first_batch = next(iter(data_loader))
     images = first_batch[0]
     labels = first_batch[1]
 
+    print(f'data shape: {images.shape}')
+    print(f'labels shape: {labels.shape}')
+    if one_hot_encode is True:
+        print(f'first one hot vec: {labels[0]}')
+
     fig, axes = plt.subplots(batch_size // 4, 4, figsize=(10, 5))
     for i in range(batch_size):
         ax = axes[i // 4, i % 4]
         ax.imshow(images[i][0], cmap='gray')
-        ax.set_title(f"Label: {labels[i]}")
+        if one_hot_encode is True:
+            label = np.where(labels[i] == 1)[0]
+        else:
+            label = labels[i]
+        ax.set_title(f"Label: {label}")
         ax.axis('off')
     plt.show()
 
 
+#rot_mnist_test()
