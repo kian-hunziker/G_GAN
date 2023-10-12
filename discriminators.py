@@ -70,6 +70,18 @@ class Discriminator(nn.Module):
         return prediction
 
 
+def init_discriminator_weights_z2(m):
+    if isinstance(m, nn.Conv2d):
+        nn.init.orthogonal(m.weight)
+        print(f'initialized {m}')
+
+
+def discriminator_initialisation_test():
+    disc = Discriminator((1, 28, 28), n_classes=10)
+    disc.apply(init_discriminator_weights_z2)
+    print('great success!')
+
+
 def discriminator_debug_test():
     img_dim = (1, 28, 28)
     batch_size = 32
@@ -90,10 +102,9 @@ def discriminator_debug_test():
 
     # Convert the list of one-hot vectors to a PyTorch tensor
     labels = torch.stack(one_hot_vectors)
-
     images = torch.randn(tuple([batch_size]) + img_dim)
 
-    assert(tuple(images.shape) == (batch_size, 1, 28, 28))
+    assert (tuple(images.shape) == (batch_size, 1, 28, 28))
 
     disc = Discriminator(img_shape=img_dim,
                          disc_arch='z2_rot_mnist',
@@ -102,3 +113,4 @@ def discriminator_debug_test():
     out = disc([images, labels])
     print(out.shape)
 
+# discriminator_initialisation_test()

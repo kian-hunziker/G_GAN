@@ -130,9 +130,10 @@ def generator_debug_test():
     out = gen(noise, labels)
     print(out.shape)
 
+
 def generator_initialisation_test():
     gen = Generator()
     gen.apply(init_generator_weights_z2)
     print('great success!')
 
-#generator_initialisation_test()
+# generator_initialisation_test()
