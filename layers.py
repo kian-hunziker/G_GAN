@@ -1,6 +1,7 @@
 import torch
 import torch.nn as nn
 
+
 class FiLM(nn.Module):
     def __init__(self, input_shape: list):
         super(FiLM, self).__init__()

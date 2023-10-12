@@ -108,11 +108,13 @@ class Generator(nn.Module):
         return out
 
 
-gen = Generator()
-batch_size = 32
-z_dim = 64
-n_classes = 10
-labels = torch.zeros((batch_size, n_classes))
-noise = torch.randn((batch_size, z_dim))
+def generator_debug_test():
+    gen = Generator()
+    batch_size = 32
+    z_dim = 64
+    n_classes = 10
+    labels = torch.zeros((batch_size, n_classes))
+    noise = torch.randn((batch_size, z_dim))
 
-out = gen(noise, labels)
+    out = gen(noise, labels)
+    print(out.shape)
