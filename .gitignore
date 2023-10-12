@@ -5,6 +5,8 @@
 *.wav
 *.png
 *.npy
+datasets
+runs
 
 # General
 .DS_Store
