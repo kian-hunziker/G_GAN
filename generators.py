@@ -88,7 +88,7 @@ def CCBN(feature_map_shape, proj_dim, group, specnorm=True, initialization='orth
 class Generator(nn.Module):
     def __init__(self, n_classes=10, gen_arch='z2_rot_mnist', latent_dim=64):
         super(Generator, self).__init__()
-
+        self.gen_arch = gen_arch
         self.channel_scale_factor = 1
         self.proj_dim = 128 * 7 * 7
         # changed from original to match pytorch standard
@@ -103,7 +103,7 @@ class Generator(nn.Module):
         self.projected_noise_and_classes = SN(nn.Linear(in_features=latent_dim + self.label_emb_dim,
                                                         out_features=self.proj_dim))
 
-        if gen_arch == 'z2_rot_mnist':
+        if self.gen_arch == 'z2_rot_mnist':
             self.conv1 = SN(nn.Conv2d(in_channels=128,
                                       out_channels=512,
                                       kernel_size=3,
@@ -137,33 +137,35 @@ class Generator(nn.Module):
                                       bias=False))
 
     def forward(self, latent_noise, label):
-        label_projection = self.label_projection_layer(label)
-        cla = torch.cat((latent_noise, label_projection), dim=1)
-        cla = self.projected_noise_and_classes(cla)
-        # TODO make reshape nicer
-        gen = cla.reshape(tuple([-1]) + self.proj_shape)
-        # now cla should be: [batch_size,128, 7, 7]
-        fea = self.conv1(gen)
-        fea = F.relu(fea)
-        fea = F.interpolate(fea, scale_factor=2)
-        # [batch_size, 512, 14, 14]
-        fea = self.conv2(fea)
-        # [batch_size, 256, 14, 14]
-        fea = self.BN1(fea)
-        # CCBN
-        fea = self.ccbn1([fea, cla])
-        fea = F.relu(fea)
-        fea = F.interpolate(fea, scale_factor=2)
-        fea = self.conv3(fea)
-        # [batch_size, 128, 28, 28]
-        fea = self.BN2(fea)
-        # CCBN
-        fea = self.ccbn2([fea, cla])
-        fea = F.relu(fea)
-        fea = self.conv4(fea)
-        # [batch_size, 1, 28, 28
+        if self.gen_arch == 'z2_rot_mnist':
+            label_projection = self.label_projection_layer(label)
+            cla = torch.cat((latent_noise, label_projection), dim=1)
+            cla = self.projected_noise_and_classes(cla)
+            # TODO make reshape nicer
+            gen = cla.reshape(tuple([-1]) + self.proj_shape)
+            # now cla should be: [batch_size,128, 7, 7]
+            fea = self.conv1(gen)
+            fea = F.relu(fea)
+            fea = F.interpolate(fea, scale_factor=2)
+            # [batch_size, 512, 14, 14]
+            fea = self.conv2(fea)
+            # [batch_size, 256, 14, 14]
+            fea = self.BN1(fea)
+            # CCBN
+            fea = self.ccbn1([fea, cla])
+            fea = F.relu(fea)
+            fea = F.interpolate(fea, scale_factor=2)
+            fea = self.conv3(fea)
+            # [batch_size, 128, 28, 28]
+            fea = self.BN2(fea)
+            # CCBN
+            fea = self.ccbn2([fea, cla])
+            fea = F.relu(fea)
+            fea = self.conv4(fea)
+            # [batch_size, 1, 28, 28
 
-        return fea
+        out = F.tanh(fea)
+        return out
 
 
 gen = Generator()
