@@ -35,7 +35,9 @@ lr_d = 0.0004
 dataset, data_loader = get_rotated_mnist_dataloader(root='datasets/RotMNIST',
                                                     batch_size=BATCH_SIZE,
                                                     shuffle=True,
-                                                    one_hot_encode=True)
+                                                    one_hot_encode=True,
+                                                    num_examples=128,
+                                                    num_rotations=7)
 print(f'Total number of training examples: {len(dataset)}')
 
 gen = Generator(n_classes=NUM_CLASSES, gen_arch=GEN_ARCH, latent_dim=LATENT_DIM)
@@ -186,10 +188,11 @@ print('\n' + '-' * 32)
 print(f'Start training for {EPOCHS} epochs')
 print('-' * 32 + '\n')
 
+
 for epoch in range(EPOCHS):
-    #print(f'EPOCH [{epoch} / {EPOCHS}]')
     start_time = time()
     progbar = tqdm(data_loader)
+    progbar.set_description(f'EPOCH [{epoch} / {EPOCHS}]')
 
     examples_per_iteration = BATCH_SIZE * (DISC_UPDATE_STEPS + 1)
     steps_per_epoch = int(len(dataset) // examples_per_iteration)
@@ -226,6 +229,5 @@ for epoch in range(EPOCHS):
                           )
 
         progbar.update(DISC_UPDATE_STEPS + 1)
-        progbar.set_description(f'EPOCH [{epoch} / {EPOCHS}]')
 
-    print(f'Time required for epoch: {((time() - start_time) / 60):.2f}')
+    progbar.close()
