@@ -1,5 +1,5 @@
+import random
 from time import time
-
 import torch
 import torch.nn as nn
 import torch.optim as optim
@@ -45,6 +45,8 @@ gen.apply(init_generator_weights_z2)
 disc.apply(init_discriminator_weights_z2)
 gen = gen.to(device)
 disc = disc.to(device)
+gen.train()
+disc.train()
 
 # get optimizers
 gen_optim, disc_optim = get_optimizers(lr_g=lr_g,
@@ -55,6 +57,24 @@ gen_optim, disc_optim = get_optimizers(lr_g=lr_g,
                                        beta2_d=beta_2,
                                        gen=gen,
                                        disc=disc)
+
+# setup summary writer
+log_dir = 'runs/Z2_GAN_RotMNIST/' + datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+summ_writer = SummaryWriter(log_dir)
+# create fixed latent noise
+fixed_noise = torch.randn(32, LATENT_DIM).to(device)
+# create fixed random labels
+one_hot_vectors = []
+for _ in range(32):
+    # Randomly select a class (0 to NUM_CLASSES - 1)
+    class_index = random.randint(0, NUM_CLASSES - 1)
+    one_hot_vector = torch.zeros(NUM_CLASSES)
+    one_hot_vector[class_index] = 1.0
+    one_hot_vectors.append(one_hot_vector)
+
+# Convert the list of one-hot vectors to a PyTorch tensor
+fixed_labels = torch.stack(one_hot_vectors).to(device)
+n_steps_for_summary = 10
 
 
 def get_opinions_for_rel_avg_loss(real_batch, labels, noise_batch):
@@ -85,8 +105,13 @@ def gen_training_step(real_batch, labels, noise_batch, step, eps=EPS):
     gen_loss.backward()
     gen_optim.step()
 
+    if step % n_steps_for_summary == 0:
+        summ_writer.add_scalar(
+            'Generator Loss', gen_loss, global_step=step
+        )
 
-def disc_training_step(real_batch, labels, noise_batch, step, eps=EPS):
+
+def disc_training_step(real_batch, labels, noise_batch, step, disc_step, eps=EPS):
     real_fake_rel_avg_opinion, fake_real_rel_avg_opinion = get_opinions_for_rel_avg_loss(real_batch,
                                                                                          labels,
                                                                                          noise_batch)
@@ -104,6 +129,22 @@ def disc_training_step(real_batch, labels, noise_batch, step, eps=EPS):
     disc.zero_grad()
     total_disc_loss.backward()
     disc_optim.step()
+
+    if step % n_steps_for_summary == 0 and disc_step == 0:
+        with torch.no_grad():
+            fake = gen(fixed_noise, fixed_labels)
+            img_grid_fake = torchvision.utils.make_grid(fake[:32], normalize=True)
+            img_grid_real = torchvision.utils.make_grid(real[:32], normalize=True)
+
+            summ_writer.add_image(
+                'RotMNIST Fake Images', img_grid_fake, global_step=step
+            )
+            summ_writer.add_image(
+                'RotMNIST Real Images', img_grid_real, global_step=step
+            )
+            summ_writer.add_scalar(
+                'Total Discriminator Loss', total_disc_loss, global_step=step
+            )
 
 
 # ---------------------------------------------------------------------------------------------------------
@@ -128,11 +169,11 @@ for epoch in range(EPOCHS):
             labels = labels.to(device)
             noise = noise.to(device)
 
-
             disc_training_step(real_batch=real,
                                labels=labels,
                                noise_batch=noise,
-                               step=(i + epoch * steps_per_epoch)
+                               step=(i + epoch * steps_per_epoch),
+                               disc_step=j
                                )
 
         # update generator
