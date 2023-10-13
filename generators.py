@@ -105,7 +105,7 @@ def init_generator_weights_z2(m):
     elif isinstance(m, FiLM):
         nn.init.orthogonal(m.beta_linear.weight)
         nn.init.orthogonal(m.gamma_linear.weight)
-        print(f'initialised film layer {m}')
+        print(f'initialized film layer {m}')
 
 
 def generator_debug_test():

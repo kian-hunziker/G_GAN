@@ -1,5 +1,7 @@
 import random
 from time import time
+
+import numpy as np
 import torch
 import torch.nn as nn
 import torch.optim as optim
@@ -15,7 +17,7 @@ from utils.optimizers import get_optimizers
 import datetime
 from tqdm import tqdm
 
-device = 'mps' if torch.backends.mps.is_available() else 'cpu'
+device = 'cpu' #'mps' if torch.backends.mps.is_available() else 'cpu'
 print(f'Using device: {device}')
 
 EPOCHS = 5
@@ -24,6 +26,7 @@ NUM_CLASSES = 10
 LATENT_DIM = 64
 EPS = 1e-6
 DISC_UPDATE_STEPS = 2
+GP_STRENGTH = 10.0
 GEN_ARCH = 'z2_rot_mnist'
 DISC_ARCH = 'z2_rot_mnist'
 IMG_SHAPE = (1, 28, 28)
@@ -122,7 +125,27 @@ def disc_training_step(real_batch, labels, noise_batch, step, disc_step, eps=EPS
     )
 
     # TODO Gradient Penalty
-    gradient_penalty = 0
+    new_real_batch = 1.0 * real_batch
+    new_real_batch.requires_grad = True
+    new_labels = 1.0 * labels
+    new_real_batch = new_real_batch.to(device)
+    new_labels = new_labels.to(device)
+    disc_opinion_real_new = disc([new_real_batch, new_labels])
+
+    gradient = torch.autograd.grad(
+        inputs=new_real_batch,
+        outputs=disc_opinion_real_new,
+        grad_outputs=torch.ones_like(disc_opinion_real_new),
+        create_graph=True,
+        retain_graph=True
+    )[0]
+    # gradient.shape: [batch_size, channels, height, width]
+    gradient = gradient.view(gradient.shape[0], -1)
+    # gradient.shape: [batch_size, channels * height * width]
+    gradient_squared = torch.square(gradient)
+    #gradient_norm = gradient.norm(2, dim=1)
+    grad_square_sum = torch.sum(gradient_squared, dim=1)
+    gradient_penalty = (GP_STRENGTH / 2.0) * torch.mean(grad_square_sum)
 
     total_disc_loss = disc_loss + gradient_penalty
 
@@ -144,6 +167,9 @@ def disc_training_step(real_batch, labels, noise_batch, step, disc_step, eps=EPS
             )
             summ_writer.add_scalar(
                 'Total Discriminator Loss', total_disc_loss, global_step=step
+            )
+            summ_writer.add_scalar(
+                'Gradient Penalty', gradient_penalty, global_step=step
             )
 
 
