@@ -71,8 +71,7 @@ def get_rotated_mnist_dataloader(root='datasets/RotMNIST',
         print(f'Loading data and labels from directory: {root}')
     else:
         print(f'Generating rotated MNIST training data')
-        utils.rotateMNIST.generate_rotated_mnist_dataset(dir_path=root,
-                                                         num_examples=num_examples,
+        utils.rotateMNIST.generate_rotated_mnist_dataset(num_examples=num_examples,
                                                          num_rotations=num_rotations,
                                                          max_angle=max_angle)
 

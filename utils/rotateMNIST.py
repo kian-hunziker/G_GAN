@@ -7,21 +7,19 @@ from scipy import ndimage
 from tqdm import tqdm
 
 
-def generate_rotated_mnist_dataset(dir_path='../datasets/RotMNIST',
-                                   num_examples=60000,
-                                   num_rotations=8,
-                                   max_angle=180):
+def generate_rotated_mnist_dataset(num_examples=60000, num_rotations=8, max_angle=180):
     if num_examples > 60000:
         print('Max number of examples is 60000 for MNIST')
         num_examples = 60000
 
     # load standard MNIST data as numpy array
     project_root = os.path.dirname(os.path.abspath(__file__))
-    dataset = datasets.MNIST(root=project_root + '../datasets', train=True, transform=transforms.ToTensor(), download=True)
+    dataset = datasets.MNIST(root=project_root + '/datasets', train=True, transform=transforms.ToTensor(), download=True)
     images, labels = dataset.data.numpy(), dataset.targets.numpy()
 
     # check data directory
-    if not os.path.isdir(dir_path):
+    dir_path = project_root + '/datasets/RotMNIST'
+    if not os.path.isdir(project_root):
         os.mkdir(path=dir_path)
         print(f'created new directory {dir_path}')
 
