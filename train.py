@@ -48,7 +48,8 @@ gen_optim, disc_optim = get_optimizers(lr_g=lr_g,
                                        disc=disc)
 
 
-def disc_training_step(real_batch, labels, noise_batch, step, eps=EPS):
+def get_opinions_for_rel_avg_loss(real_batch, labels, noise_batch):
+    # TODO: is it inefficient to move this function out here?
     fake_batch = gen(noise_batch, labels)
 
     disc_opinion_real = disc([real_batch, labels])
@@ -57,7 +58,30 @@ def disc_training_step(real_batch, labels, noise_batch, step, eps=EPS):
     real_fake_rel_avg_opinion = (disc_opinion_real - torch.mean(disc_opinion_fake, dim=0))
     fake_real_rel_avg_opinion = (disc_opinion_fake - torch.mean(disc_opinion_real, dim=0))
 
+    return real_fake_rel_avg_opinion, fake_real_rel_avg_opinion
+
+
+def gen_training_step(real_batch, labels, noise_batch, step, eps=EPS):
+    real_fake_rel_avg_opinion, fake_real_rel_avg_opinion = get_opinions_for_rel_avg_loss(real_batch,
+                                                                                         labels,
+                                                                                         noise_batch)
+
     # loss, relativistic average loss
+    gen_loss = torch.mean(
+        - torch.mean(torch.log(torch.sigmoid(fake_real_rel_avg_opinion) + eps), dim=0)
+        - torch.mean(torch.log(1 - torch.sigmoid(real_fake_rel_avg_opinion) + eps), dim=0)
+    )
+
+    gen.zero_grad()
+    gen_loss.backward()
+    gen_optim.step()
+
+
+def disc_training_step(real_batch, labels, noise_batch, step, eps=EPS):
+    real_fake_rel_avg_opinion, fake_real_rel_avg_opinion = get_opinions_for_rel_avg_loss(real_batch,
+                                                                                         labels,
+                                                                                         noise_batch)
+
     disc_loss = torch.mean(
         - torch.mean(torch.log(torch.sigmoid(real_fake_rel_avg_opinion) + eps), dim=0)
         - torch.mean(torch.log(1 - torch.sigmoid(fake_real_rel_avg_opinion) + eps), dim=0)
