@@ -16,7 +16,8 @@ def generate_rotated_mnist_dataset(dir_path='../datasets/RotMNIST',
         num_examples = 60000
 
     # load standard MNIST data as numpy array
-    dataset = datasets.MNIST(root='../datasets', train=True, transform=transforms.ToTensor(), download=True)
+    project_root = os.path.dirname(os.path.abspath(__file__))
+    dataset = datasets.MNIST(root=project_root + '../datasets', train=True, transform=transforms.ToTensor(), download=True)
     images, labels = dataset.data.numpy(), dataset.targets.numpy()
 
     # check data directory

@@ -121,4 +121,4 @@ def rot_mnist_test():
     plt.show()
 
 
-rot_mnist_test()
+#rot_mnist_test()
