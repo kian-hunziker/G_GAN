@@ -10,10 +10,11 @@ import utils.rotateMNIST
 
 
 class RotMnistDataset(torch.utils.data.Dataset):
-    def __init__(self, root, transform=transforms.ToTensor(), one_hot_encode=False):
-        self.data_path = root
-        self.data = np.load(self.data_path + '/images.npy')
-        self.targets = np.load(self.data_path + '/labels.npy')
+    def __init__(self, data_path, label_path, transform=transforms.ToTensor(), one_hot_encode=False):
+        self.data_path = data_path
+        self.label_path = label_path
+        self.data = np.load(self.data_path)
+        self.targets = np.load(self.label_path)
         self.transform = transform
         self.one_hot_encode = one_hot_encode
         self.n_classes = 10
@@ -55,19 +56,30 @@ def get_rotated_mnist_dataloader(root='datasets/RotMNIST',
                                  batch_size=64,
                                  mean=0.5,
                                  std=0.5,
+                                 num_examples=60000,
+                                 num_rotations=8,
+                                 max_angle=180,
                                  shuffle=True,
                                  one_hot_encode=False) -> (RotMnistDataset, torch.utils.data.DataLoader):
     transform = transforms.Compose(
         [transforms.ToTensor(), transforms.Normalize((mean,), (std,))]
     )
-
-    if os.path.exists(root + '/images.npy') and os.path.exists(root + '/labels.npy'):
+    suffix = f'_{num_examples}ex_{num_rotations}rot_{max_angle}deg.npy'
+    data_path = root + '/data' + suffix
+    label_path = root + '/labels' + suffix
+    if os.path.exists(data_path) and os.path.exists(label_path):
         print(f'Loading data and labels from directory: {root}')
     else:
         print(f'Generating rotated MNIST training data')
-        utils.rotateMNIST.generate_rotated_mnist_dataset(dir_path=root, num_examples=60000, num_rotations=8, max_angle=180)
+        utils.rotateMNIST.generate_rotated_mnist_dataset(dir_path=root,
+                                                         num_examples=num_examples,
+                                                         num_rotations=num_rotations,
+                                                         max_angle=max_angle)
 
-    dataset = RotMnistDataset(root=root, transform=transform, one_hot_encode=one_hot_encode)
+    dataset = RotMnistDataset(data_path=data_path,
+                              label_path=label_path,
+                              transform=transform,
+                              one_hot_encode=one_hot_encode)
     data_loader = torch.utils.data.DataLoader(dataset, batch_size=batch_size, shuffle=shuffle)
 
     return dataset, data_loader
@@ -79,7 +91,10 @@ def rot_mnist_test():
 
     dataset, data_loader = get_rotated_mnist_dataloader(root='../datasets/RotMNIST',
                                                         batch_size=batch_size,
-                                                        one_hot_encode=one_hot_encode)
+                                                        one_hot_encode=one_hot_encode,
+                                                        num_examples=60000,
+                                                        num_rotations=8,
+                                                        max_angle=180)
 
     #first_batch = next(iter(data_loader))
     #images = first_batch[0]
@@ -106,4 +121,4 @@ def rot_mnist_test():
     plt.show()
 
 
-#rot_mnist_test()
+rot_mnist_test()

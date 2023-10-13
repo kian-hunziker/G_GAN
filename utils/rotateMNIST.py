@@ -4,12 +4,16 @@ import torchvision.transforms as transforms
 import matplotlib.pyplot as plt
 import numpy as np
 from scipy import ndimage
+from tqdm import tqdm
 
 
 def generate_rotated_mnist_dataset(dir_path='../datasets/RotMNIST',
                                    num_examples=60000,
                                    num_rotations=8,
                                    max_angle=180):
+    if num_examples > 60000:
+        print('Max number of examples is 60000 for MNIST')
+        num_examples = 60000
 
     # load standard MNIST data as numpy array
     dataset = datasets.MNIST(root='../datasets', train=True, transform=transforms.ToTensor(), download=True)
@@ -25,16 +29,13 @@ def generate_rotated_mnist_dataset(dir_path='../datasets/RotMNIST',
 
     # background value. Images are in range [0, 255], 0 is black
     bg_value = 0
-
+    prog_bar = tqdm(total=num_examples * (num_rotations + 1))
     for i in range(num_examples):
         original_image = images[i]
         label = labels[i]
         # append images that are not rotated
         expanded_images.append(original_image)
         expanded_labels.append(label)
-
-        if i % 500 == 0:
-            print(f'rotated {i} / {num_examples} digits')
 
         for _ in range(num_rotations):
             angle = np.random.randint(-max_angle, max_angle, 1)[0]
@@ -43,13 +44,18 @@ def generate_rotated_mnist_dataset(dir_path='../datasets/RotMNIST',
             expanded_images.append(new_image)
             expanded_labels.append(label)
 
-    # save images and labels
-    np.save(dir_path + '/images.npy', expanded_images)
-    np.save(dir_path + '/labels.npy', expanded_labels)
+        prog_bar.update(1 + num_rotations)
 
-    print('=' * 16)
+    # save images and labels
+    suffix = f'_{num_examples}ex_{num_rotations}rot_{max_angle}deg.npy'
+    np.save(dir_path + '/data' + suffix, expanded_images)
+    np.save(dir_path + '/labels' + suffix, expanded_labels)
+
+    prog_bar.close()
+
+    print('=' * 32)
     print(f' saved {len(expanded_images)} rotated images and labels')
-    print('=' * 16)
+    print('=' * 32)
 
     # Display a number of digits and corresponding rotations
     num_display_digits = 4
