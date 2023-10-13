@@ -35,9 +35,6 @@ class RotMnistDataset(torch.utils.data.Dataset):
     def __len__(self):
         return self.data.shape[0]
 
-    def get_dataset_size(self):
-        return self.data.shape[0]
-
 
 def get_standard_mnist_dataloader(root='datasets/',
                                   batch_size=64,
