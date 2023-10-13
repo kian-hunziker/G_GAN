@@ -138,7 +138,7 @@ def disc_training_step(real_batch, labels, noise_batch, step, disc_step, eps=EPS
         - torch.mean(torch.log(1 - torch.sigmoid(fake_real_rel_avg_opinion) + eps), dim=0)
     )
 
-    # TODO Gradient Penalty
+    # TODO check Gradient Penalty
     new_real_batch = 1.0 * real_batch
     new_real_batch.requires_grad = True
     new_labels = 1.0 * labels
@@ -194,9 +194,9 @@ print('\n' + '-' * 32)
 print(f'Start training for {EPOCHS} epochs')
 print('-' * 32 + '\n')
 
+start_time = time()
 
 for epoch in range(EPOCHS):
-    start_time = time()
     progbar = tqdm(data_loader)
     progbar.set_description(f'EPOCH [{epoch + 1} / {EPOCHS}]')
 
@@ -238,6 +238,10 @@ for epoch in range(EPOCHS):
 
     progbar.close()
 
+total_training_time = time() - start_time
+hours, remainder = divmod(int(total_training_time), 3600)
+minutes, seconds = divmod(remainder, 60)
+print(f'Total training time: {hours:02d}h {minutes:02d}m {seconds:02d}s')
 
 # ---------------------------------------------------------------------------------------------------------
 # Train loop finished -> save models
