@@ -35,6 +35,9 @@ class RotMnistDataset(torch.utils.data.Dataset):
     def __len__(self):
         return self.data.shape[0]
 
+    def get_dataset_size(self):
+        return self.data.shape[0]
+
 
 def get_standard_mnist_dataloader(root='datasets/',
                                   batch_size=64,
@@ -56,7 +59,7 @@ def get_rotated_mnist_dataloader(root='datasets/RotMNIST',
                                  mean=0.5,
                                  std=0.5,
                                  shuffle=True,
-                                 one_hot_encode=False) -> (torch.utils.data.Dataset, torch.utils.data.DataLoader):
+                                 one_hot_encode=False) -> (RotMnistDataset, torch.utils.data.DataLoader):
     transform = transforms.Compose(
         [transforms.ToTensor(), transforms.Normalize((mean,), (std,))]
     )
@@ -85,6 +88,7 @@ def rot_mnist_test():
     images = first_batch[0]
     labels = first_batch[1]
 
+    print(f'Total number of training examples: {dataset.get_dataset_size()}')
     print(f'data shape: {images.shape}')
     print(f'labels shape: {labels.shape}')
     if one_hot_encode is True:
