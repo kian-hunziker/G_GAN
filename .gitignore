@@ -5,8 +5,9 @@
 *.wav
 *.png
 *.npy
-datasets
-runs
+datasets/*
+runs/*
+trained_models/z2_rot_mnist/*
 
 # General
 .DS_Store
