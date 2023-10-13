@@ -84,11 +84,13 @@ def rot_mnist_test():
                                                         batch_size=batch_size,
                                                         one_hot_encode=one_hot_encode)
 
-    first_batch = next(iter(data_loader))
-    images = first_batch[0]
-    labels = first_batch[1]
+    #first_batch = next(iter(data_loader))
+    #images = first_batch[0]
+    #labels = first_batch[1]
 
-    print(f'Total number of training examples: {dataset.get_dataset_size()}')
+    images, labels = next(iter(data_loader))
+
+    print(f'Total number of training examples: {len(dataset)}')
     print(f'data shape: {images.shape}')
     print(f'labels shape: {labels.shape}')
     if one_hot_encode is True:
