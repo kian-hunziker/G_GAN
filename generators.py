@@ -98,14 +98,16 @@ class Generator(nn.Module):
         return out
 
 
-def init_generator_weights_z2(m):
+def init_generator_weights_z2(m, show_details=False):
     if isinstance(m, nn.Conv2d):
-        nn.init.orthogonal(m.weight)
-        print(f'initialized {m}')
+        nn.init.orthogonal_(m.weight)
+        if show_details is True:
+            print(f'initialized {m}')
     elif isinstance(m, FiLM):
-        nn.init.orthogonal(m.beta_linear.weight)
-        nn.init.orthogonal(m.gamma_linear.weight)
-        print(f'initialized film layer {m}')
+        nn.init.orthogonal_(m.beta_linear.weight)
+        nn.init.orthogonal_(m.gamma_linear.weight)
+        if show_details is True:
+            print(f'initialized film layer {m}')
 
 
 def generator_debug_test():

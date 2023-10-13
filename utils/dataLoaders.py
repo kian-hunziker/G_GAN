@@ -62,9 +62,9 @@ def get_rotated_mnist_dataloader(root='datasets/RotMNIST',
     )
 
     if os.path.exists(root + '/images.npy') and os.path.exists(root + '/labels.npy'):
-        print(f'loading data and labels from directory {root}')
+        print(f'Loading data and labels from directory: {root}')
     else:
-        print(f'generating rotated MNIST training data')
+        print(f'Generating rotated MNIST training data')
         utils.rotateMNIST.generate_rotated_mnist_dataset(dir_path=root, num_examples=60000, num_rotations=8, max_angle=180)
 
     dataset = RotMnistDataset(root=root, transform=transform, one_hot_encode=one_hot_encode)

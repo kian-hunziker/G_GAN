@@ -1,23 +1,20 @@
-import random
-from time import time
-
-import numpy as np
 import torch
-import torch.nn as nn
-import torch.optim as optim
 import torchvision
-import torchvision.datasets as datasets
-from torch.utils.data import DataLoader
-import torchvision.transforms as transforms
 from torch.utils.tensorboard import SummaryWriter
+
+import random
+import datetime
+from time import time
+from tqdm import tqdm
+
 from generators import Generator, init_generator_weights_z2
 from discriminators import Discriminator, init_discriminator_weights_z2
 from utils.dataLoaders import get_rotated_mnist_dataloader
 from utils.optimizers import get_optimizers
-import datetime
-from tqdm import tqdm
 
-device = 'cpu' #'mps' if torch.backends.mps.is_available() else 'cpu'
+
+device = 'mps' if torch.backends.mps.is_available() else 'cpu'
+print('-' * 32 + '\n')
 print(f'Using device: {device}')
 
 EPOCHS = 5
@@ -39,13 +36,22 @@ dataset, data_loader = get_rotated_mnist_dataloader(root='datasets/RotMNIST',
                                                     batch_size=BATCH_SIZE,
                                                     shuffle=True,
                                                     one_hot_encode=True)
+print(f'Total number of training examples: {len(dataset)}')
 
 gen = Generator(n_classes=NUM_CLASSES, gen_arch=GEN_ARCH, latent_dim=LATENT_DIM)
 disc = Discriminator(img_shape=IMG_SHAPE, disc_arch=DISC_ARCH, n_classes=NUM_CLASSES)
 
+n_trainable_params_gen = sum(p.numel() for p in gen.parameters() if p.requires_grad)
+n_trainable_params_disc = sum(p.numel() for p in disc.parameters() if p.requires_grad)
+print(f'Trainable Parameters in Generator: {n_trainable_params_gen}')
+print(f'Trainable Parameters in Discriminator: {n_trainable_params_disc}\n')
+
 # orthogonal initialization
+print('Initializing Generator Weights')
 gen.apply(init_generator_weights_z2)
+print('Initializing Discriminator Weights')
 disc.apply(init_discriminator_weights_z2)
+
 gen = gen.to(device)
 disc = disc.to(device)
 gen.train()
@@ -176,6 +182,10 @@ def disc_training_step(real_batch, labels, noise_batch, step, disc_step, eps=EPS
 # ---------------------------------------------------------------------------------------------------------
 # Train loop
 # ---------------------------------------------------------------------------------------------------------
+print('\n' + '-' * 32)
+print(f'Start training for {EPOCHS} epochs')
+print('-' * 32 + '\n')
+
 for epoch in range(EPOCHS):
     #print(f'EPOCH [{epoch} / {EPOCHS}]')
     start_time = time()

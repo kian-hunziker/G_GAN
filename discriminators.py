@@ -59,10 +59,11 @@ class Discriminator(nn.Module):
         return prediction
 
 
-def init_discriminator_weights_z2(m):
+def init_discriminator_weights_z2(m, show_details=False):
     if isinstance(m, nn.Conv2d):
-        nn.init.orthogonal(m.weight)
-        print(f'initialized {m}')
+        nn.init.orthogonal_(m.weight)
+        if show_details is True:
+            print(f'initialized {m}')
 
 
 def discriminator_initialisation_test():
