@@ -1,3 +1,5 @@
+import os
+
 import torch
 import torchvision
 from torch.utils.tensorboard import SummaryWriter
@@ -12,6 +14,9 @@ from discriminators import Discriminator, init_discriminator_weights_z2
 from utils.dataLoaders import get_rotated_mnist_dataloader
 from utils.optimizers import get_optimizers
 
+
+# TODO name networks properly
+IDENTIFIER_FOR_SAVING = '_test'
 
 device = 'mps' if torch.backends.mps.is_available() else 'cpu'
 print('-' * 32 + '\n')
@@ -45,8 +50,8 @@ disc = Discriminator(img_shape=IMG_SHAPE, disc_arch=DISC_ARCH, n_classes=NUM_CLA
 
 n_trainable_params_gen = sum(p.numel() for p in gen.parameters() if p.requires_grad)
 n_trainable_params_disc = sum(p.numel() for p in disc.parameters() if p.requires_grad)
-print(f'Trainable Parameters in Generator: {n_trainable_params_gen}')
-print(f'Trainable Parameters in Discriminator: {n_trainable_params_disc}\n')
+print(f'Trainable parameters in Generator: {n_trainable_params_gen}')
+print(f'Trainable parameters in Discriminator: {n_trainable_params_disc}\n')
 
 # orthogonal initialization
 print('Initializing Generator Weights')
@@ -70,7 +75,8 @@ gen_optim, disc_optim = get_optimizers(lr_g=lr_g,
                                        disc=disc)
 
 # setup summary writer
-log_dir = 'runs/Z2_GAN_RotMNIST/' + datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+current_date = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+log_dir = 'runs/Z2_GAN_RotMNIST/' + current_date
 summ_writer = SummaryWriter(log_dir)
 # create fixed latent noise
 fixed_noise = torch.randn(32, LATENT_DIM).to(device)
@@ -192,7 +198,7 @@ print('-' * 32 + '\n')
 for epoch in range(EPOCHS):
     start_time = time()
     progbar = tqdm(data_loader)
-    progbar.set_description(f'EPOCH [{epoch} / {EPOCHS}]')
+    progbar.set_description(f'EPOCH [{epoch + 1} / {EPOCHS}]')
 
     examples_per_iteration = BATCH_SIZE * (DISC_UPDATE_STEPS + 1)
     steps_per_epoch = int(len(dataset) // examples_per_iteration)
@@ -231,3 +237,25 @@ for epoch in range(EPOCHS):
         progbar.update(DISC_UPDATE_STEPS + 1)
 
     progbar.close()
+
+
+# ---------------------------------------------------------------------------------------------------------
+# Train loop finished -> save models
+# ---------------------------------------------------------------------------------------------------------
+
+print('\n' + '-' * 32)
+print(f'Saving Generator and Discriminator as {IDENTIFIER_FOR_SAVING}')
+print('-' * 32 + '\n')
+
+# path for trained models
+trained_models_path = 'trained_models/z2_rot_mnist/' + current_date
+# check data directory
+if not os.path.isdir(trained_models_path):
+    os.mkdir(path=trained_models_path)
+    print(f'created new directory {trained_models_path}')
+
+# save models
+gen_path = trained_models_path + '/generator' + IDENTIFIER_FOR_SAVING
+disc_path = trained_models_path + '/discriminator' + IDENTIFIER_FOR_SAVING
+torch.save(gen.state_dict(), gen_path)
+torch.save(disc.state_dict(), disc_path)
