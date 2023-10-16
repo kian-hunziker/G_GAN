@@ -36,7 +36,8 @@ class Generator(nn.Module):
                                       padding='same',
                                       bias=False))
             self.BN1 = nn.BatchNorm2d(num_features=256,
-                                      momentum=0.1)
+                                      momentum=0.1,
+                                      affine=False)
             self.ccbn1 = CCBN(feature_map_shape=[256, 14, 14],
                               proj_dim=self.proj_dim,
                               group='Z2')
@@ -46,8 +47,10 @@ class Generator(nn.Module):
                                       padding='same',
                                       bias=False))
             # TODO: affine?? default is affine = True
+            # affine= false reduces no trainable params from 7694208 to 7693440
             self.BN2 = nn.BatchNorm2d(num_features=128,
-                                      momentum=0.1)
+                                      momentum=0.1,
+                                      affine=False)
             # CCBN
             self.ccbn2 = CCBN(feature_map_shape=[128, 28, 28],
                               proj_dim=self.proj_dim,
