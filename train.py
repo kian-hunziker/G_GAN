@@ -16,7 +16,7 @@ from utils.optimizers import get_optimizers
 
 
 # TODO name networks properly
-IDENTIFIER_FOR_SAVING = '_test'
+IDENTIFIER_FOR_SAVING = 'test'
 
 device = 'mps' if torch.backends.mps.is_available() else 'cpu'
 print('-' * 32 + '\n')
@@ -29,8 +29,8 @@ LATENT_DIM = 64
 EPS = 1e-6
 DISC_UPDATE_STEPS = 2
 GP_STRENGTH = 10.0
-GEN_ARCH = 'z2_rot_mnist'
-DISC_ARCH = 'z2_rot_mnist'
+GEN_ARCH = 'p4_rot_mnist'#'z2_rot_mnist'
+DISC_ARCH = 'p4_rot_mnist'#'z2_rot_mnist'
 IMG_SHAPE = (1, 28, 28)
 beta_1 = 0.0
 beta_2 = 0.9
@@ -77,7 +77,8 @@ gen_optim, disc_optim = get_optimizers(lr_g=lr_g,
 
 # setup summary writer
 current_date = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-log_dir = 'runs/Z2_GAN_RotMNIST/' + current_date
+#log_dir = 'runs/Z2_GAN_RotMNIST/' + current_date
+log_dir = f'runs/{GEN_ARCH}/{current_date}'
 summ_writer = SummaryWriter(log_dir)
 # create fixed latent noise
 fixed_noise = torch.randn(32, LATENT_DIM).to(device)
@@ -253,14 +254,14 @@ print(f'Saving Generator and Discriminator as {IDENTIFIER_FOR_SAVING}')
 print('-' * 32 + '\n')
 
 # path for trained models
-trained_models_path = 'trained_models/z2_rot_mnist/' + current_date
+trained_models_path = f'trained_models/{GEN_ARCH}/{current_date}'
 # check data directory
 if not os.path.isdir(trained_models_path):
     os.mkdir(path=trained_models_path)
     print(f'created new directory {trained_models_path}')
 
 # save models
-gen_path = trained_models_path + '/generator' + IDENTIFIER_FOR_SAVING
-disc_path = trained_models_path + '/discriminator' + IDENTIFIER_FOR_SAVING
+gen_path = f'{trained_models_path}/generator_{IDENTIFIER_FOR_SAVING}'
+disc_path = f'{trained_models_path}/discriminator_{IDENTIFIER_FOR_SAVING}'
 torch.save(gen.state_dict(), gen_path)
 torch.save(disc.state_dict(), disc_path)
