@@ -3,6 +3,7 @@ from groupy.gconv.pytorch_gconv import P4ConvZ2, P4ConvP4
 import numpy as np
 import matplotlib.pyplot as plt
 from scipy import ndimage
+from utils import pooling
 
 
 # Create a 28x28 array filled with -1s
@@ -67,6 +68,8 @@ with torch.no_grad():
 
 out_line = conv_line_kernel(square_input_tensor)
 out_diag = conv_diag_kernel(rot_input_tensor)
+pooled_out = pooling.group_max_pool(out_line, group='C4')
+pooled_out = pooled_out.detach().numpy()
 print(f'out shape: {out_line.shape}')
 out_line = out_line.detach().numpy()
 out_diag = out_diag.detach().numpy()
@@ -86,6 +89,11 @@ for i in range(4):
     ax = axes[i // 2, i % 2]
     ax.imshow(out_diag[0, 0, i, :, :], cmap='gray')
 plt.tight_layout()
+plt.show()
+
+
+plt.imshow(pooled_out[0, 0, 0, :, :], cmap='gray')
+plt.title('pooled output')
 plt.show()
 
 '''
