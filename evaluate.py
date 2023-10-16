@@ -71,10 +71,12 @@ def plot_slight_variations(digit, inc_size, start_from_zero=True):
 
 gen = Generator()
 gen.load_state_dict(
-    torch.load('trained_models/z2_rot_mnist/2023-10-13 15:09:04/generator_test',
+    torch.load('trained_models/z2_rot_mnist/2023-10-13 18:23:50/generator_test',
                map_location=torch.device('cpu'))
 )
 gen.eval()
 
 for _ in range(10):
-    plot_slight_variations(digit=5, inc_size=0.3, start_from_zero=False)
+    plot_slight_variations(digit=3, inc_size=0.6, start_from_zero=True)
+
+#plot_examples_for_all_classes()

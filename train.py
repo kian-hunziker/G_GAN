@@ -44,6 +44,7 @@ dataset, data_loader = get_rotated_mnist_dataloader(root='datasets/RotMNIST',
                                                     num_examples=128,
                                                     num_rotations=7)
 print(f'Total number of training examples: {len(dataset)}')
+print(f'Training data path: {dataset.data_path}')
 
 gen = Generator(n_classes=NUM_CLASSES, gen_arch=GEN_ARCH, latent_dim=LATENT_DIM)
 disc = Discriminator(img_shape=IMG_SHAPE, disc_arch=DISC_ARCH, n_classes=NUM_CLASSES)
