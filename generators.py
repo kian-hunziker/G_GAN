@@ -4,6 +4,8 @@ import torch.nn.functional as F
 from torch.nn.utils import spectral_norm as SN
 from blocks import CCBN
 from layers import GFiLM
+from utils import pooling, g_batch_norm
+from groupy.gconv.pytorch_gconv import P4ConvZ2, P4ConvP4
 
 
 class Generator(nn.Module):
@@ -60,6 +62,40 @@ class Generator(nn.Module):
                                       kernel_size=3,
                                       padding='same',
                                       bias=False))
+        elif self.gen_arch == 'p4_rot_mnist':
+            # TODO: orthogonal initialization for gconv?
+            self.conv1 = SN(P4ConvZ2(in_channels=128,
+                                     out_channels=256,
+                                     kernel_size=3,
+                                     stride=1,
+                                     padding=1,
+                                     bias=True))
+            self.conv2 = SN(P4ConvP4(in_channels=256,
+                                     out_channels=128,
+                                     kernel_size=3,
+                                     stride=1,
+                                     padding=1,
+                                     bias=False))
+            self.gbn1 = g_batch_norm.GBatchNorm('C4', num_channels=128, affine=False)
+            self.ccbn1 = CCBN(feature_map_shape=[128, 14, 14],
+                              proj_dim=self.proj_dim,
+                              group='C4')
+            self.conv3 = SN(P4ConvP4(in_channels=128,
+                                     out_channels=64,
+                                     kernel_size=3,
+                                     stride=1,
+                                     padding=1,
+                                     bias=False))
+            self.gbn2 = g_batch_norm.GBatchNorm('C4', num_channels=64, affine=False)
+            self.ccbn2 = CCBN(feature_map_shape=[64, 28, 28],
+                              proj_dim=self.proj_dim,
+                              group='C4')
+            self.conv4 = SN(P4ConvP4(in_channels=64,
+                                     out_channels=1,
+                                     kernel_size=3,
+                                     stride=1,
+                                     padding=1,
+                                     bias=False))
 
     def forward(self, latent_noise: torch.Tensor, label: torch.Tensor) -> torch.Tensor:
         '''
@@ -71,12 +107,13 @@ class Generator(nn.Module):
         :param label: class labels one hot encoded [batch_size, n_classes]
         :return: synthesized images [batch_size, n_channels, height, width]
         '''
+        label_projection = self.label_projection_layer(label)
+        cla = torch.cat((latent_noise, label_projection), dim=1)
+        cla = self.projected_noise_and_classes(cla)
+        # TODO make reshape nicer
+        gen = cla.reshape(tuple([-1]) + self.proj_shape)
+
         if self.gen_arch == 'z2_rot_mnist':
-            label_projection = self.label_projection_layer(label)
-            cla = torch.cat((latent_noise, label_projection), dim=1)
-            cla = self.projected_noise_and_classes(cla)
-            # TODO make reshape nicer
-            gen = cla.reshape(tuple([-1]) + self.proj_shape)
             # now cla should be: [batch_size,128, 7, 7]
             fea = self.conv1(gen)
             fea = F.relu(fea)
@@ -97,6 +134,24 @@ class Generator(nn.Module):
             fea = F.relu(fea)
             fea = self.conv4(fea)
             # [batch_size, 1, 28, 28
+        elif self.gen_arch == 'p4_rot_mnist':
+            fea = F.relu(self.conv1(gen))
+
+            # upsample 2x
+            s = fea.shape
+            fea = F.interpolate(fea.view(s[0], s[1] * s[2], s[3], s[4]), scale_factor=2)
+            fea = fea.view(s[0], s[1], s[2], 2 * s[3], 2 * s[4])
+            fea = F.relu(self.ccbn1([self.gbn1(self.conv2(fea)), cla]))
+
+            # upsample 2x
+            s = fea.shape
+            fea = F.interpolate(fea.view(s[0], s[1] * s[2], s[3], s[4]), scale_factor=2)
+            fea = fea.view(s[0], s[1], s[2], 2 * s[3], 2 * s[4])
+
+            fea = F.relu(self.ccbn2([self.gbn2(self.conv3(fea)), cla]))
+
+            fea = self.conv4(fea)
+            fea = pooling.group_max_pool(fea, group='C4')
 
         out = F.tanh(fea)
         return out
@@ -114,14 +169,13 @@ def init_generator_weights_z2(m, show_details=False):
             print(f'initialized film layer {m}')
 
 
-def generator_debug_test():
-    gen = Generator()
+def generator_debug_test(gen_arch):
+    gen = Generator(gen_arch=gen_arch)
     batch_size = 32
     z_dim = 64
     n_classes = 10
     labels = torch.zeros((batch_size, n_classes))
     noise = torch.randn((batch_size, z_dim))
-
     out = gen(noise, labels)
     print(out.shape)
 
@@ -132,3 +186,4 @@ def generator_initialisation_test():
     print('great success!')
 
 # generator_initialisation_test()
+generator_debug_test('p4_rot_mnist')
