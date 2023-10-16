@@ -45,6 +45,7 @@ class Generator(nn.Module):
                                       kernel_size=3,
                                       padding='same',
                                       bias=False))
+            # TODO: affine?? default is affine = True
             self.BN2 = nn.BatchNorm2d(num_features=128,
                                       momentum=0.1)
             # CCBN
