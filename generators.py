@@ -3,7 +3,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torch.nn.utils import spectral_norm as SN
 from blocks import CCBN
-from layers import FiLM
+from layers import GFiLM
 
 
 class Generator(nn.Module):
@@ -103,7 +103,7 @@ def init_generator_weights_z2(m, show_details=False):
         nn.init.orthogonal_(m.weight)
         if show_details is True:
             print(f'initialized {m}')
-    elif isinstance(m, FiLM):
+    elif isinstance(m, GFiLM):
         nn.init.orthogonal_(m.beta_linear.weight)
         nn.init.orthogonal_(m.gamma_linear.weight)
         if show_details is True:
