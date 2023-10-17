@@ -26,8 +26,11 @@ if torch.backends.mps.is_available():
 elif torch.cuda.is_available():
     device = torch.device('cuda')
 
+project_root = os.path.dirname(os.path.abspath(__file__))
+
 print('-' * 32 + '\n')
 print(f'Using device: {device}')
+print(f'Project root: {project_root}\n')
 
 # Hyperparameters
 EPOCHS = 5
@@ -52,14 +55,14 @@ random.seed(RANDOM_SEED)
 np.random.seed(RANDOM_SEED)
 
 # setup data loader
-dataset, data_loader = get_rotated_mnist_dataloader(root='datasets/RotMNIST',
+dataset, data_loader = get_rotated_mnist_dataloader(root=project_root,
                                                     batch_size=BATCH_SIZE,
                                                     shuffle=True,
                                                     one_hot_encode=True,
                                                     num_examples=128,
                                                     num_rotations=7)
 print(f'Total number of training examples: {len(dataset)}')
-print(f'Training data path: {dataset.data_path}')
+# print(f'Training data path: {dataset.data_path}')
 
 # setup generator and discriminator
 gen = Generator(n_classes=NUM_CLASSES, gen_arch=GEN_ARCH, latent_dim=LATENT_DIM)
