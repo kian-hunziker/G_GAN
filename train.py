@@ -3,6 +3,7 @@ import os
 import torch
 import torchvision
 from torch.utils.tensorboard import SummaryWriter
+import numpy as np
 
 import random
 import datetime
@@ -18,10 +19,17 @@ from utils.optimizers import get_optimizers
 # TODO name networks properly
 IDENTIFIER_FOR_SAVING = 'test'
 
-device = 'mps' if torch.backends.mps.is_available() else 'cpu'
+# setup device
+device = 'cpu'
+if torch.backends.mps.is_available():
+    device = torch.device('mps')
+elif torch.cuda.is_available():
+    device = torch.device('cuda')
+
 print('-' * 32 + '\n')
 print(f'Using device: {device}')
 
+# Hyperparameters
 EPOCHS = 5
 BATCH_SIZE = 64
 NUM_CLASSES = 10
@@ -37,6 +45,13 @@ beta_2 = 0.9
 lr_g = 0.0001
 lr_d = 0.0004
 
+# fix random seeds
+RANDOM_SEED = 42
+torch.manual_seed(RANDOM_SEED)
+random.seed(RANDOM_SEED)
+np.random.seed(RANDOM_SEED)
+
+# setup data loader
 dataset, data_loader = get_rotated_mnist_dataloader(root='datasets/RotMNIST',
                                                     batch_size=BATCH_SIZE,
                                                     shuffle=True,
@@ -46,6 +61,7 @@ dataset, data_loader = get_rotated_mnist_dataloader(root='datasets/RotMNIST',
 print(f'Total number of training examples: {len(dataset)}')
 print(f'Training data path: {dataset.data_path}')
 
+# setup generator and discriminator
 gen = Generator(n_classes=NUM_CLASSES, gen_arch=GEN_ARCH, latent_dim=LATENT_DIM)
 disc = Discriminator(img_shape=IMG_SHAPE, disc_arch=DISC_ARCH, n_classes=NUM_CLASSES)
 
@@ -77,22 +93,17 @@ gen_optim, disc_optim = get_optimizers(lr_g=lr_g,
 
 # setup summary writer
 current_date = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-#log_dir = 'runs/z2_rot_mnist/' + current_date
 log_dir = f'runs/{GEN_ARCH}/{current_date}'
 summ_writer = SummaryWriter(log_dir)
 # create fixed latent noise
 fixed_noise = torch.randn(32, LATENT_DIM).to(device)
 # create fixed random labels
-one_hot_vectors = []
-for _ in range(32):
-    # Randomly select a class (0 to NUM_CLASSES - 1)
-    class_index = random.randint(0, NUM_CLASSES - 1)
-    one_hot_vector = torch.zeros(NUM_CLASSES)
-    one_hot_vector[class_index] = 1.0
-    one_hot_vectors.append(one_hot_vector)
+rand_labels = torch.randint(0, 10, (32,))
+fixed_labels = torch.zeros(32, 10)
+fixed_labels.scatter_(1, rand_labels.unsqueeze(1), 1)
 
-# Convert the list of one-hot vectors to a PyTorch tensor
-fixed_labels = torch.stack(one_hot_vectors).to(device)
+print(f'The fixed labels are: \n {fixed_labels.view(4, 8).numpy()}')
+
 n_steps_for_summary = 10
 
 
