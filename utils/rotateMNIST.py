@@ -60,21 +60,17 @@ def generate_rotated_mnist_dataset(root, num_examples=60000, num_rotations=8, ma
 
             prog_bar.update(1 + num_rotations)
 
-    # save images and labels
-    suffix = f'_{num_examples}ex_{num_rotations}rot_{max_angle}deg.npy'
-    np.save(dir_path + '/data' + suffix, expanded_images)
-    np.save(dir_path + '/labels' + suffix, expanded_labels)
 
     prog_bar.close()
 
-    print('=' * 32)
-    print(f' saved {len(expanded_images)} rotated images and labels')
-    print('=' * 32)
-
     # Display a number of digits and corresponding rotations
     num_display_digits = 4
-    num_cols = num_rotations + 1
-    start = np.random.randint(0, num_examples) * num_cols
+    if num_rotations == 0:
+        num_cols = 8
+        start = 0
+    else:
+        num_cols = num_rotations + 1
+        start = np.random.randint(0, num_examples) * num_cols
     fig, axes = plt.subplots(num_display_digits, num_cols, figsize=(12, 4))
     for i in range(num_display_digits * num_cols):
         ax = axes[i // num_cols, i % num_cols]
@@ -84,5 +80,13 @@ def generate_rotated_mnist_dataset(root, num_examples=60000, num_rotations=8, ma
     plt.tight_layout()
     plt.show()
 
+    # save images and labels
+    suffix = f'_{num_examples}ex_{num_rotations}rot_{max_angle}deg.npy'
+    np.save(dir_path + '/data' + suffix, expanded_images)
+    np.save(dir_path + '/labels' + suffix, expanded_labels)
+
+    print('=' * 32)
+    print(f' saved {len(expanded_images)} rotated images and labels')
+    print('=' * 32)
 
 #generate_rotated_mnist_dataset(num_examples=12000, num_rotations=0, max_angle=180)
