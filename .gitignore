@@ -8,6 +8,7 @@
 datasets/*
 runs/*
 trained_models/z2_rot_mnist/*
+trained_models/p4_rot_mnist/*
 
 # General
 .DS_Store
