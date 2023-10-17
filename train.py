@@ -56,8 +56,8 @@ dataset, data_loader = get_rotated_mnist_dataloader(root='datasets/RotMNIST',
                                                     batch_size=BATCH_SIZE,
                                                     shuffle=True,
                                                     one_hot_encode=True,
-                                                    num_examples=60000,
-                                                    num_rotations=8)
+                                                    num_examples=128,
+                                                    num_rotations=7)
 print(f'Total number of training examples: {len(dataset)}')
 print(f'Training data path: {dataset.data_path}')
 
@@ -100,11 +100,39 @@ fixed_noise = torch.randn(32, LATENT_DIM).to(device)
 # create fixed random labels
 rand_labels = torch.randint(0, 10, (32,))
 fixed_labels = torch.zeros(32, 10)
-fixed_labels.scatter_(1, rand_labels.unsqueeze(1), 1)
+fixed_labels = fixed_labels.scatter_(1, rand_labels.unsqueeze(1), 1).to(device)
 
-print(f'The fixed labels are: \n {fixed_labels.view(4, 8).numpy()}')
+'''
+The fixed labels are: 
+ [[3 8 9 6 7 4 5 0]
+ [7 4 3 4 4 3 3 3]
+ [4 3 3 6 7 1 5 7]
+ [5 3 7 1 7 7 0 8]]
+'''
+
+print(f'The fixed labels are: \n {rand_labels.view(4, 8).numpy()}')
 
 n_steps_for_summary = 10
+
+# setup for checkpointing and saving trained models
+n_iterations_for_checkpointing = 2
+trained_models_path = f'trained_models/{GEN_ARCH}/{current_date}'
+if not os.path.isdir(trained_models_path):
+    os.mkdir(path=trained_models_path)
+    print(f'created new directory {trained_models_path}')
+
+
+def save_checkpoint(n_iterations):
+    checkpoint_path = f'{trained_models_path}/checkpoint_{n_iterations}'
+    torch.save({
+        'iterations': n_iterations,
+        'gen_arch': GEN_ARCH,
+        'disc_arch': DISC_ARCH,
+        'generator': gen.state_dict(),
+        'discriminator': disc.state_dict(),
+        'gen_optim': gen_optim.state_dict(),
+        'disc_optim': disc_optim.state_dict(),
+    }, checkpoint_path)
 
 
 def get_opinions_for_rel_avg_loss(real_batch, labels, noise_batch):
@@ -207,6 +235,8 @@ print('\n' + '-' * 32)
 print(f'Start training for {EPOCHS} epochs')
 print('-' * 32 + '\n')
 
+no_training_examples = len(dataset)
+
 start_time = time()
 
 for epoch in range(EPOCHS):
@@ -214,11 +244,12 @@ for epoch in range(EPOCHS):
     progbar.set_description(f'EPOCH [{epoch + 1} / {EPOCHS}]')
 
     examples_per_iteration = BATCH_SIZE * (DISC_UPDATE_STEPS + 1)
-    steps_per_epoch = int(len(dataset) // examples_per_iteration)
+    steps_per_epoch = int(no_training_examples // examples_per_iteration)
 
     # loop through dataset
     for i in range(steps_per_epoch):
 
+        step = i + epoch * steps_per_epoch
         # update discriminator
         for j in range(DISC_UPDATE_STEPS):
             real, labels = next(iter(data_loader))
@@ -230,7 +261,7 @@ for epoch in range(EPOCHS):
             disc_training_step(real_batch=real,
                                labels=labels,
                                noise_batch=noise,
-                               step=(i + epoch * steps_per_epoch),
+                               step=step,
                                disc_step=j
                                )
 
@@ -244,8 +275,11 @@ for epoch in range(EPOCHS):
         gen_training_step(real_batch=real,
                           labels=labels,
                           noise_batch=noise,
-                          step=(i + epoch * steps_per_epoch)
+                          step=step
                           )
+
+        if step % n_iterations_for_checkpointing == 0:
+            save_checkpoint(step)
 
         progbar.update(DISC_UPDATE_STEPS + 1)
 
@@ -263,13 +297,6 @@ print(f'Total training time: {hours:02d}h {minutes:02d}m {seconds:02d}s')
 print('\n' + '-' * 32)
 print(f'Saving Generator and Discriminator as {IDENTIFIER_FOR_SAVING}')
 print('-' * 32 + '\n')
-
-# path for trained models
-trained_models_path = f'trained_models/{GEN_ARCH}/{current_date}'
-# check data directory
-if not os.path.isdir(trained_models_path):
-    os.mkdir(path=trained_models_path)
-    print(f'created new directory {trained_models_path}')
 
 # save models
 gen_path = f'{trained_models_path}/generator_{IDENTIFIER_FOR_SAVING}'

@@ -186,4 +186,4 @@ def generator_initialisation_test():
     print('great success!')
 
 # generator_initialisation_test()
-generator_debug_test('p4_rot_mnist')
+#generator_debug_test('p4_rot_mnist')

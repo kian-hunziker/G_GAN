@@ -150,4 +150,4 @@ def discriminator_debug_test(disc_arch):
     print(out.shape)
 
 # discriminator_initialisation_test()
-discriminator_debug_test('p4_rot_mnist')
+# discriminator_debug_test('p4_rot_mnist')
