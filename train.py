@@ -28,7 +28,7 @@ NUM_CLASSES = 10
 LATENT_DIM = 64
 EPS = 1e-6
 DISC_UPDATE_STEPS = 2
-GP_STRENGTH = 10.0
+GP_STRENGTH = 0.1
 GEN_ARCH = 'p4_rot_mnist'#'z2_rot_mnist'
 DISC_ARCH = 'p4_rot_mnist'#'z2_rot_mnist'
 IMG_SHAPE = (1, 28, 28)
@@ -41,8 +41,8 @@ dataset, data_loader = get_rotated_mnist_dataloader(root='datasets/RotMNIST',
                                                     batch_size=BATCH_SIZE,
                                                     shuffle=True,
                                                     one_hot_encode=True,
-                                                    num_examples=128,
-                                                    num_rotations=7)
+                                                    num_examples=60000,
+                                                    num_rotations=8)
 print(f'Total number of training examples: {len(dataset)}')
 print(f'Training data path: {dataset.data_path}')
 
@@ -77,7 +77,7 @@ gen_optim, disc_optim = get_optimizers(lr_g=lr_g,
 
 # setup summary writer
 current_date = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-#log_dir = 'runs/Z2_GAN_RotMNIST/' + current_date
+#log_dir = 'runs/z2_rot_mnist/' + current_date
 log_dir = f'runs/{GEN_ARCH}/{current_date}'
 summ_writer = SummaryWriter(log_dir)
 # create fixed latent noise
