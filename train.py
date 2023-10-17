@@ -33,7 +33,7 @@ print(f'Using device: {device}')
 print(f'Project root: {project_root}\n')
 
 # Hyperparameters
-EPOCHS = 5
+EPOCHS = 30
 BATCH_SIZE = 64
 NUM_CLASSES = 10
 LATENT_DIM = 64
@@ -59,8 +59,8 @@ dataset, data_loader = get_rotated_mnist_dataloader(root=project_root,
                                                     batch_size=BATCH_SIZE,
                                                     shuffle=True,
                                                     one_hot_encode=True,
-                                                    num_examples=128,
-                                                    num_rotations=7)
+                                                    num_examples=12000,
+                                                    num_rotations=0)
 print(f'Total number of training examples: {len(dataset)}')
 # print(f'Training data path: {dataset.data_path}')
 
@@ -118,7 +118,7 @@ print(f'The fixed labels are: \n {rand_labels.view(4, 8).numpy()}')
 n_steps_for_summary = 10
 
 # setup for checkpointing and saving trained models
-n_iterations_for_checkpointing = 2
+n_iterations_for_checkpointing = 100
 trained_models_path = f'trained_models/{GEN_ARCH}/{current_date}'
 if not os.path.isdir(trained_models_path):
     os.mkdir(path=trained_models_path)
@@ -173,6 +173,7 @@ def gen_training_step(real_batch, labels, noise_batch, step, eps=EPS):
 
 
 def disc_training_step(real_batch, labels, noise_batch, step, disc_step, eps=EPS):
+    # TODO maybe generate fake images without gradient??
     real_fake_rel_avg_opinion, fake_real_rel_avg_opinion = get_opinions_for_rel_avg_loss(real_batch,
                                                                                          labels,
                                                                                          noise_batch)
