@@ -8,6 +8,13 @@ from tqdm import tqdm
 
 
 def generate_rotated_mnist_dataset(num_examples=60000, num_rotations=8, max_angle=180):
+    """
+    :param num_examples: number of mnist images that are used for augmentation
+    :param num_rotations: number of times each image is rotated. Use 0 to rotate each image once and not
+                        include the original image
+    :param max_angle: images are rotated by an angle between [-max_angle, max_angle]
+    :return: saves the rotated MNIST dataset in 'datasets/RotMNIST'
+    """
     if num_examples > 60000:
         print('Max number of examples is 60000 for MNIST')
         num_examples = 60000
@@ -25,25 +32,33 @@ def generate_rotated_mnist_dataset(num_examples=60000, num_rotations=8, max_angl
 
     expanded_images = []
     expanded_labels = []
-
     # background value. Images are in range [0, 255], 0 is black
     bg_value = 0
     prog_bar = tqdm(total=num_examples * (num_rotations + 1))
-    for i in range(num_examples):
-        original_image = images[i]
-        label = labels[i]
-        # append images that are not rotated
-        expanded_images.append(original_image)
-        expanded_labels.append(label)
 
-        for _ in range(num_rotations):
+    if num_rotations == 0:
+        for i in range(num_examples):
             angle = np.random.randint(-max_angle, max_angle, 1)[0]
-            new_image = ndimage.rotate(original_image, angle, reshape=False, cval=bg_value)
-
+            new_image = ndimage.rotate(images[i], angle, reshape=False, cval=bg_value)
             expanded_images.append(new_image)
+            expanded_labels.append(labels[i])
+            prog_bar.update(1)
+    else:
+        for i in range(num_examples):
+            original_image = images[i]
+            label = labels[i]
+            # append images that are not rotated
+            expanded_images.append(original_image)
             expanded_labels.append(label)
 
-        prog_bar.update(1 + num_rotations)
+            for _ in range(num_rotations):
+                angle = np.random.randint(-max_angle, max_angle, 1)[0]
+                new_image = ndimage.rotate(original_image, angle, reshape=False, cval=bg_value)
+
+                expanded_images.append(new_image)
+                expanded_labels.append(label)
+
+            prog_bar.update(1 + num_rotations)
 
     # save images and labels
     suffix = f'_{num_examples}ex_{num_rotations}rot_{max_angle}deg.npy'
@@ -69,3 +84,5 @@ def generate_rotated_mnist_dataset(num_examples=60000, num_rotations=8, max_angl
     plt.tight_layout()
     plt.show()
 
+
+#generate_rotated_mnist_dataset(num_examples=12000, num_rotations=0, max_angle=180)
