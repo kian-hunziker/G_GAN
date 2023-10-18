@@ -18,6 +18,8 @@ from utils.dataLoaders import get_rotated_mnist_dataloader
 from utils.optimizers import get_optimizers
 
 device = 'cpu'
+
+
 def load_checkpoint(checkpoint_path):
     checkpoint = torch.load(checkpoint_path, map_location=device)
     gen = Generator(gen_arch=checkpoint['gen_arch'])
@@ -29,6 +31,7 @@ def load_checkpoint(checkpoint_path):
     gen.eval()
     disc.eval()
     return gen, disc
+
 
 def plot_images(images: torch.Tensor):
     num_images = images.shape[0]
@@ -82,6 +85,7 @@ def plot_slight_variations(digit, inc_size, start_from_zero=True):
     images = gen(noise, label)
     plot_images(images)
 
+
 '''
 gen = Generator()
 gen.load_state_dict(
@@ -93,8 +97,11 @@ gen.eval()
 for _ in range(10):
     plot_slight_variations(digit=3, inc_size=0.6, start_from_zero=True)
 '''
-#plot_examples_for_all_classes()
+# plot_examples_for_all_classes()
 
-gen, disc = load_checkpoint('trained_models/p4_rot_mnist/2023-10-17 13:28:06/checkpoint_24')
-plot_slight_variations(3, inc_size=0.6)
+gen, disc = load_checkpoint('trained_models/p4_rot_mnist/2023-10-17 22:02:15/checkpoint_4000')
+#plot_examples_for_all_classes()
+for i in range(5):
+    inc_size = 0.5 #0.5 * (1 + i)
+    plot_slight_variations(1, inc_size=inc_size, start_from_zero=True)
 print('loaded')

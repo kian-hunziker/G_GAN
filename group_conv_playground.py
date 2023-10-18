@@ -76,7 +76,7 @@ out_diag = out_diag.detach().numpy()
 
 # plot result of convolution with a line kernel
 fig, axes = plt.subplots(2, 2, figsize=(8, 8))
-plt.title('Conv output for all 9 degree rotations')
+plt.title('Conv output for all 90 degree rotations')
 for i in range(4):
     ax = axes[i // 2, i % 2]
     ax.imshow(out_line[0, 0, i, :, :], cmap='gray')
@@ -84,7 +84,7 @@ plt.tight_layout()
 plt.show()
 
 fig, axes = plt.subplots(2, 2, figsize=(8, 8))
-plt.title('Conv output for all 9 degree rotations')
+plt.title('Conv output for all 90 degree rotations')
 for i in range(4):
     ax = axes[i // 2, i % 2]
     ax.imshow(out_diag[0, 0, i, :, :], cmap='gray')
@@ -92,7 +92,7 @@ plt.tight_layout()
 plt.show()
 
 
-plt.imshow(pooled_out[0, 0, 0, :, :], cmap='gray')
+plt.imshow(pooled_out[0, 0, :, :], cmap='gray')
 plt.title('pooled output')
 plt.show()
 

@@ -6,8 +6,8 @@ https://github.com/neel-dey/tf2-keras-gcnn/blob/master/keras_gcnn/layers/normali
 '''
 
 
-# TODO add momentum to g batch norm (moving average)
 class GBatchNorm(nn.GroupNorm):
+    # TODO add momentum to g batch norm (moving average)
     def __init__(self, group, num_channels, eps=1e-05, affine=True, device=None, dtype=None):
         self.group = group
         if self.group == 'Z2':
@@ -52,5 +52,4 @@ def batch_norm_basic_test():
     assert out_c4.shape == test_input_c4.shape
     assert out_z2.shape == test_input_z2.shape
 
-
-#batch_norm_basic_test()
+# batch_norm_basic_test()
