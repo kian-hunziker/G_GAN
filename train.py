@@ -21,10 +21,10 @@ IDENTIFIER_FOR_SAVING = 'test'
 
 # setup device
 device = 'cpu'
-if torch.backends.mps.is_available():
-    device = torch.device('mps')
-elif torch.cuda.is_available():
+if torch.cuda.is_available():
     device = torch.device('cuda')
+elif torch.backends.mps.is_available():
+    device = torch.device('mps')
 
 project_root = os.path.dirname(os.path.abspath(__file__))
 
@@ -33,7 +33,7 @@ print(f'Using device: {device}')
 print(f'Project root: {project_root}\n')
 
 # Hyperparameters
-EPOCHS = 30
+EPOCHS = 300
 BATCH_SIZE = 64
 NUM_CLASSES = 10
 LATENT_DIM = 64
@@ -99,11 +99,20 @@ current_date = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 log_dir = f'runs/{GEN_ARCH}/{current_date}'
 summ_writer = SummaryWriter(log_dir)
 # create fixed latent noise
-fixed_noise = torch.randn(32, LATENT_DIM).to(device)
+no_examples_for_summary = 40
+fixed_noise = torch.randn(no_examples_for_summary, LATENT_DIM).to(device)
 # create fixed random labels
-rand_labels = torch.randint(0, 10, (32,))
-fixed_labels = torch.zeros(32, 10)
-fixed_labels = fixed_labels.scatter_(1, rand_labels.unsqueeze(1), 1).to(device)
+#rand_labels = torch.randint(0, 10, (32,))
+#fixed_labels = torch.zeros(32, 10)
+#fixed_labels = fixed_labels.scatter_(1, rand_labels.unsqueeze(1), 1).to(device)
+
+l = torch.zeros(no_examples_for_summary, 10)
+for i in range(4):
+    for c in range(10):
+        l[10 * i + c, c] = 1
+
+fixed_labels = l.to(device)
+print(f'The fixed labels are: \n {fixed_labels.nonzero(as_tuple=True)[1].view(4, 10).cpu().numpy()}')
 
 '''
 The fixed labels are: 
@@ -113,12 +122,12 @@ The fixed labels are:
  [5 3 7 1 7 7 0 8]]
 '''
 
-print(f'The fixed labels are: \n {rand_labels.view(4, 8).numpy()}')
+#print(f'The fixed labels are: \n {rand_labels.view(4, 8).numpy()}')
 
 n_steps_for_summary = 10
 
 # setup for checkpointing and saving trained models
-n_iterations_for_checkpointing = 100
+n_iterations_for_checkpointing = 200
 trained_models_path = f'trained_models/{GEN_ARCH}/{current_date}'
 if not os.path.isdir(trained_models_path):
     os.mkdir(path=trained_models_path)
@@ -152,9 +161,13 @@ def get_opinions_for_rel_avg_loss(real_batch, labels, noise_batch):
 
 
 def gen_training_step(real_batch, labels, noise_batch, step, eps=EPS):
-    real_fake_rel_avg_opinion, fake_real_rel_avg_opinion = get_opinions_for_rel_avg_loss(real_batch,
-                                                                                         labels,
-                                                                                         noise_batch)
+    fake_batch = gen(noise_batch, labels)
+
+    disc_opinion_real = disc([real_batch, labels])
+    disc_opinion_fake = disc([fake_batch, labels])
+
+    real_fake_rel_avg_opinion = (disc_opinion_real - torch.mean(disc_opinion_fake, dim=0))
+    fake_real_rel_avg_opinion = (disc_opinion_fake - torch.mean(disc_opinion_real, dim=0))
 
     # loss, relativistic average loss
     gen_loss = torch.mean(
@@ -174,9 +187,14 @@ def gen_training_step(real_batch, labels, noise_batch, step, eps=EPS):
 
 def disc_training_step(real_batch, labels, noise_batch, step, disc_step, eps=EPS):
     # TODO maybe generate fake images without gradient??
-    real_fake_rel_avg_opinion, fake_real_rel_avg_opinion = get_opinions_for_rel_avg_loss(real_batch,
-                                                                                         labels,
-                                                                                         noise_batch)
+    with torch.no_grad():
+        fake_batch = gen(noise_batch, labels)
+
+    disc_opinion_real = disc([real_batch, labels])
+    disc_opinion_fake = disc([fake_batch, labels])
+
+    real_fake_rel_avg_opinion = (disc_opinion_real - torch.mean(disc_opinion_fake, dim=0))
+    fake_real_rel_avg_opinion = (disc_opinion_fake - torch.mean(disc_opinion_real, dim=0))
 
     disc_loss = torch.mean(
         - torch.mean(torch.log(torch.sigmoid(real_fake_rel_avg_opinion) + eps), dim=0)
@@ -215,7 +233,7 @@ def disc_training_step(real_batch, labels, noise_batch, step, disc_step, eps=EPS
     if step % n_steps_for_summary == 0 and disc_step == 0:
         with torch.no_grad():
             fake = gen(fixed_noise, fixed_labels)
-            img_grid_fake = torchvision.utils.make_grid(fake[:32], normalize=True)
+            img_grid_fake = torchvision.utils.make_grid(fake[:no_examples_for_summary], nrow=10, normalize=True)
             img_grid_real = torchvision.utils.make_grid(real[:32], normalize=True)
 
             summ_writer.add_image(
