@@ -11,7 +11,7 @@ class Discriminator(nn.Module):
     def __init__(self, img_shape: tuple[int, int, int], disc_arch: str = 'z2_rot_mnist', n_classes: int = 10):
         """
         :param img_shape: tuple [n_channels, height, width]
-        :param disc_arch: architecture type, one of {'z2_rot_mnist', 'p4_rot_mnist'}
+        :param disc_arch: architecture type, one of {'z2_rot_mnist', 'p4_rot_mnist', 'z2_rot_mnist_no_label'}
         :param n_classes: number of classes, int
         """
         super(Discriminator, self).__init__()
@@ -19,7 +19,7 @@ class Discriminator(nn.Module):
         n_channels = img_shape[0]
         height = img_shape[1]
         width = img_shape[2]
-        if self.disc_arch == 'z2_rot_mnist':
+        if 'z2_rot_mnist' in self.disc_arch:
             self.block1 = DiscBlock(in_features=n_channels,
                                     out_features=128,
                                     h_input='Z2',
@@ -38,12 +38,16 @@ class Discriminator(nn.Module):
                                     h_output='Z2',
                                     group_equivariance=False,
                                     pool='avg')
-            # 3 x 3 feature?
-            self.label_emb_linear = nn.Linear(in_features=n_classes,
-                                              out_features=512)
+            if self.disc_arch == 'z2_rot_mnist':
+                # 3 x 3 feature?
+                self.label_emb_linear = nn.Linear(in_features=n_classes,
+                                                  out_features=512)
 
-            self.last_layer = SN(nn.Linear(in_features=512,
-                                           out_features=1))
+                self.last_layer = SN(nn.Linear(in_features=512,
+                                               out_features=1))
+            elif self.disc_arch == 'z2_rot_mnist_no_label':
+                self.last_layer = SN(nn.Linear(in_features=512,
+                                               out_features=1))
         elif self.disc_arch == 'p4_rot_mnist':
             self.block1 = DiscBlock(in_features=n_channels,
                                     out_features=64,
@@ -75,7 +79,7 @@ class Discriminator(nn.Module):
                     labels.shape: [batch_size, n_classes]
         :return: forward pass of discriminator
         """
-        if self.disc_arch == 'z2_rot_mnist':
+        if 'z2_rot_mnist' in self.disc_arch:
             fea = self.block1(x[0])
             # fea: [batch_size, 128, 14, 14]
             fea = self.block2(fea)
@@ -94,14 +98,19 @@ class Discriminator(nn.Module):
 
         flat = torch.squeeze(flat)
         # flat: [batch_size, n_filters_last_block]
-        label_emb = self.label_emb_linear(x[1])
-        # label_emb: [batch_size, n_filters_last_block]
+        if self.disc_arch == 'z2_rot_mnist_no_label':
+            # no labels: omit projection with embedded labels
+            prediction = self.last_layer(flat)
+            prediction = torch.squeeze(prediction)
+        else:
+            label_emb = self.label_emb_linear(x[1])
+            # label_emb: [batch_size, n_filters_last_block]
 
-        projection = (flat * label_emb).sum(axis=1)
-        original_pred = self.last_layer(flat)
-        original_pred = torch.squeeze(original_pred)
-        prediction = torch.add(projection, original_pred)
-        # prediction: [batch_size,]
+            projection = (flat * label_emb).sum(axis=1)
+            original_pred = self.last_layer(flat)
+            original_pred = torch.squeeze(original_pred)
+            prediction = torch.add(projection, original_pred)
+            # prediction: [batch_size,]
         return prediction
 
 
