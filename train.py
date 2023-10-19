@@ -61,7 +61,7 @@ dataset, data_loader = get_rotated_mnist_dataloader(root=project_root,
                                                     one_hot_encode=True,
                                                     num_examples=12000,
                                                     num_rotations=0,
-                                                    no_labels='no_labels' in GEN_ARCH and 'no_labels' in DISC_ARCH)
+                                                    no_labels='no_label' in GEN_ARCH and 'no_label' in DISC_ARCH)
 print(f'Total number of training examples: {len(dataset)}')
 # print(f'Training data path: {dataset.data_path}')
 
