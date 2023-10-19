@@ -50,6 +50,15 @@ def plot_32_example_digits(digit):
     plot_images(images)
 
 
+def plot_32_random_examples():
+    assert 'no_label' in gen.gen_arch
+    # latent noise for image generation
+    noise = torch.randn(32, 64).to(device)
+    # generate images and convert to numpy
+    images = gen(noise, None)
+    plot_images(images)
+
+
 def plot_examples_for_all_classes():
     for i in range(10):
         plot_32_example_digits(i)
@@ -86,10 +95,12 @@ for _ in range(10):
     plot_slight_variations(digit=3, inc_size=0.6, start_from_zero=True)
 '''
 # plot_examples_for_all_classes()
-
-gen, disc = load_checkpoint('trained_models/p4_rot_mnist/2023-10-17 22:02:15/checkpoint_9000', device=device)
+p4_path = 'trained_models/p4_rot_mnist/2023-10-17 22:02:15/checkpoint_10000'
+z2_path = 'trained_models/z2_rot_mnist/2023-10-19 15:42:33/checkpoint_20000'
+gen, disc = load_checkpoint(checkpoint_path=z2_path, device=device)
 #plot_examples_for_all_classes()
+#plot_32_random_examples()
 for i in range(15):
     inc_size = 0.5 #0.5 * (1 + i)
-    plot_slight_variations(7, inc_size=inc_size, start_from_zero=False)
+    plot_slight_variations(8, inc_size=inc_size, start_from_zero=False)
 print('loaded')
