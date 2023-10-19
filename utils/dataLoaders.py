@@ -10,7 +10,7 @@ import utils.rotateMNIST
 
 
 class RotMnistDataset(torch.utils.data.Dataset):
-    def __init__(self, data_path, label_path, transform=transforms.ToTensor(), one_hot_encode=False):
+    def __init__(self, data_path, label_path, transform=transforms.ToTensor(), one_hot_encode=False, no_labels=False):
         self.data_path = data_path
         self.label_path = label_path
         self.data = np.load(self.data_path)
@@ -18,6 +18,7 @@ class RotMnistDataset(torch.utils.data.Dataset):
         self.transform = transform
         self.one_hot_encode = one_hot_encode
         self.n_classes = 10
+        self.no_labels = no_labels
 
     def __getitem__(self, index):
         x = self.data[index]
@@ -25,11 +26,14 @@ class RotMnistDataset(torch.utils.data.Dataset):
         if self.transform:
             x = self.transform(x)
 
-        if self.one_hot_encode is True:
-            y = torch.zeros(self.n_classes)
-            y[self.targets[index]] = 1
+        if self.no_labels is True:
+            y = torch.zeros(1)
         else:
-            y = self.targets[index]
+            if self.one_hot_encode is True:
+                y = torch.zeros(self.n_classes)
+                y[self.targets[index]] = 1
+            else:
+                y = self.targets[index]
 
         return x, y
 
@@ -60,7 +64,8 @@ def get_rotated_mnist_dataloader(root,
                                  num_rotations=8,
                                  max_angle=180,
                                  shuffle=True,
-                                 one_hot_encode=False) -> (RotMnistDataset, torch.utils.data.DataLoader):
+                                 one_hot_encode=False,
+                                 no_labels=False) -> (RotMnistDataset, torch.utils.data.DataLoader):
     # TODO: do we normalize the MNIST dataset?
     transform = transforms.Compose(
         [transforms.ToTensor(), transforms.Normalize((mean,), (std,))]
@@ -84,7 +89,8 @@ def get_rotated_mnist_dataloader(root,
     dataset = RotMnistDataset(data_path=data_path,
                               label_path=label_path,
                               transform=transform,
-                              one_hot_encode=one_hot_encode)
+                              one_hot_encode=one_hot_encode,
+                              no_labels=no_labels)
     data_loader = torch.utils.data.DataLoader(dataset, batch_size=batch_size, shuffle=shuffle)
 
     return dataset, data_loader
