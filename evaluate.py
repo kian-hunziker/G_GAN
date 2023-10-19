@@ -14,23 +14,11 @@ import matplotlib.pyplot as plt
 
 from generators import Generator, init_generator_weights_z2
 from discriminators import Discriminator, init_discriminator_weights_z2
+from utils.checkpoints import load_checkpoint
 from utils.dataLoaders import get_rotated_mnist_dataloader
 from utils.optimizers import get_optimizers
 
 device = 'cpu'
-
-
-def load_checkpoint(checkpoint_path):
-    checkpoint = torch.load(checkpoint_path, map_location=device)
-    gen = Generator(gen_arch=checkpoint['gen_arch'])
-    disc = Discriminator([1, 28, 28], disc_arch=checkpoint['disc_arch'])
-    gen.load_state_dict(checkpoint['generator'])
-    disc.load_state_dict(checkpoint['discriminator'])
-    gen.to(device)
-    disc.to(device)
-    gen.eval()
-    disc.eval()
-    return gen, disc
 
 
 def plot_images(images: torch.Tensor):
@@ -99,7 +87,7 @@ for _ in range(10):
 '''
 # plot_examples_for_all_classes()
 
-gen, disc = load_checkpoint('trained_models/p4_rot_mnist/2023-10-17 22:02:15/checkpoint_9000')
+gen, disc = load_checkpoint('trained_models/p4_rot_mnist/2023-10-17 22:02:15/checkpoint_9000', device=device)
 #plot_examples_for_all_classes()
 for i in range(15):
     inc_size = 0.5 #0.5 * (1 + i)

@@ -11,12 +11,22 @@ def load_checkpoint(checkpoint_path, device='cpu'):
     :return: Generator, Discriminator, in eval() mode, loaded to device
     """
     checkpoint = torch.load(checkpoint_path, map_location=device)
-    gen = Generator(gen_arch=checkpoint['gen_arch'])
-    disc = Discriminator([1, 28, 28], disc_arch=checkpoint['disc_arch'])
+    gen_arch = checkpoint['gen_arch']
+    disc_arch = checkpoint['disc_arch']
+    gen = Generator(gen_arch=gen_arch)
+    disc = Discriminator([1, 28, 28], disc_arch=disc_arch)
     gen.load_state_dict(checkpoint['generator'])
     disc.load_state_dict(checkpoint['discriminator'])
     gen.to(device)
     disc.to(device)
     gen.eval()
     disc.eval()
+
+    print('-' * 32)
+    print(f'Loaded checkpoint from: {checkpoint_path}')
+    print(f'Generator architecture: {gen_arch}')
+    print(f'Discriminator architecture : {disc_arch}\n')
+    print('-' * 32)
+    print('\n')
+
     return gen, disc
