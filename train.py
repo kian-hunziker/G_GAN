@@ -40,8 +40,8 @@ LATENT_DIM = 64
 EPS = 1e-6
 DISC_UPDATE_STEPS = 2
 GP_STRENGTH = 0.1
-GEN_ARCH = 'p4_rot_mnist'#'z2_rot_mnist'
-DISC_ARCH = 'p4_rot_mnist'#'z2_rot_mnist'
+GEN_ARCH = 'z2_rot_mnist_no_label'#'z2_rot_mnist'
+DISC_ARCH = 'z2_rot_mnist_no_label' # 'p4_rot_mnist'
 IMG_SHAPE = (1, 28, 28)
 beta_1 = 0.0
 beta_2 = 0.9
@@ -60,7 +60,8 @@ dataset, data_loader = get_rotated_mnist_dataloader(root=project_root,
                                                     shuffle=True,
                                                     one_hot_encode=True,
                                                     num_examples=12000,
-                                                    num_rotations=0)
+                                                    num_rotations=0,
+                                                    no_labels='no_labels' in GEN_ARCH and 'no_labels' in DISC_ARCH)
 print(f'Total number of training examples: {len(dataset)}')
 # print(f'Training data path: {dataset.data_path}')
 
@@ -113,6 +114,9 @@ for i in range(4):
 
 fixed_labels = l.to(device)
 print(f'The fixed labels are: \n {fixed_labels.nonzero(as_tuple=True)[1].view(4, 10).cpu().numpy()}')
+
+if 'no_label' in GEN_ARCH:
+    fixed_labels = None
 
 '''
 The fixed labels are: 
