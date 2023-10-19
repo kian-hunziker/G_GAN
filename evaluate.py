@@ -99,9 +99,9 @@ for _ in range(10):
 '''
 # plot_examples_for_all_classes()
 
-gen, disc = load_checkpoint('trained_models/p4_rot_mnist/2023-10-17 22:02:15/checkpoint_4000')
+gen, disc = load_checkpoint('trained_models/p4_rot_mnist/2023-10-17 22:02:15/checkpoint_9000')
 #plot_examples_for_all_classes()
-for i in range(5):
+for i in range(15):
     inc_size = 0.5 #0.5 * (1 + i)
-    plot_slight_variations(1, inc_size=inc_size, start_from_zero=True)
+    plot_slight_variations(7, inc_size=inc_size, start_from_zero=False)
 print('loaded')
