@@ -2,7 +2,10 @@ import torch
 import torch.nn as nn
 from torch.nn.utils import spectral_norm as SN
 import torch.nn.functional as F
-from groupy.gconv.pytorch_gconv import P4ConvZ2, P4ConvP4
+try:
+    from groupy.gconv.pytorch_gconv import P4ConvZ2, P4ConvP4
+except ImportError:
+    from utils.groupy_dummie import P4ConvZ2, P4ConvP4
 
 from layers import GFiLM
 

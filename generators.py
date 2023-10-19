@@ -5,8 +5,10 @@ from torch.nn.utils import spectral_norm as SN
 from blocks import CCBN
 from layers import GFiLM
 from utils import pooling, g_batch_norm
-from groupy.gconv.pytorch_gconv import P4ConvZ2, P4ConvP4
-
+try:
+    from groupy.gconv.pytorch_gconv import P4ConvZ2, P4ConvP4
+except ImportError:
+    from utils.groupy_dummie import P4ConvZ2, P4ConvP4
 
 class Generator(nn.Module):
     def __init__(self, n_classes: int = 10, gen_arch: str = 'z2_rot_mnist', latent_dim: int = 64):
@@ -49,7 +51,7 @@ class Generator(nn.Module):
                                       bias=False))
             self.BN1 = nn.BatchNorm2d(num_features=256,
                                       momentum=0.1,
-                                      affine=False)
+                                      affine=True)
             self.ccbn1 = CCBN(feature_map_shape=[256, 14, 14],
                               proj_dim=self.proj_dim,
                               group='Z2')
@@ -62,7 +64,7 @@ class Generator(nn.Module):
             # affine= false reduces no trainable params from 7694208 to 7693440
             self.BN2 = nn.BatchNorm2d(num_features=128,
                                       momentum=0.1,
-                                      affine=False)
+                                      affine=True)
             # CCBN
             self.ccbn2 = CCBN(feature_map_shape=[128, 28, 28],
                               proj_dim=self.proj_dim,
