@@ -61,7 +61,6 @@ class Generator(nn.Module):
                                       kernel_size=3,
                                       padding='same',
                                       bias=False))
-            # TODO: affine?? default is affine = True
             # affine= false reduces no trainable params from 7694208 to 7693440
             self.BN2 = nn.BatchNorm2d(num_features=128,
                                       momentum=0.1,
