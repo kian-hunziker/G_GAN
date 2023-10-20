@@ -10,10 +10,11 @@ import datetime
 from time import time
 from tqdm import tqdm
 
-from generators import Generator, init_generator_weights_z2
+from generators import Generator, init_generator_weights_z2, initialize_weights
 from discriminators import Discriminator, init_discriminator_weights_z2
-from utils.dataLoaders import get_rotated_mnist_dataloader
+from utils.dataLoaders import get_rotated_mnist_dataloader, get_standard_mnist_dataloader
 from utils.optimizers import get_optimizers
+from utils.gradient_penalty import zero_centered_gp_real_data, vanilla_gp
 
 
 # TODO name networks properly
@@ -34,19 +35,24 @@ print(f'Project root: {project_root}\n')
 
 # Hyperparameters
 EPOCHS = 300
+n_iterations_for_checkpointing = 1000
 BATCH_SIZE = 64
 NUM_CLASSES = 10
-LATENT_DIM = 64
+LATENT_DIM = 100
 EPS = 1e-6
-DISC_UPDATE_STEPS = 2
-GP_STRENGTH = 0.1
-GEN_ARCH = 'z2_rot_mnist_no_label'#'z2_rot_mnist'
-DISC_ARCH = 'z2_rot_mnist_no_label' # 'p4_rot_mnist'
+DISC_UPDATE_STEPS = 5
+GP_STRENGTH = 10#0.1
+# GP_TYPE: one of {'vanilla', 'zero_centered'}
+GP_TYPE = 'vanilla'
+# LOSS_TYPE: one of {'wasserstein', 'rel_avg'}
+LOSS_TYPE = 'wasserstein'
+GEN_ARCH = 'vanilla'#'z2_rot_mnist_no_label'#'z2_rot_mnist'
+DISC_ARCH = 'vanilla'#z2_rot_mnist_no_label' # 'p4_rot_mnist'
 IMG_SHAPE = (1, 28, 28)
 beta_1 = 0.0
 beta_2 = 0.9
 lr_g = 0.0001
-lr_d = 0.0004
+lr_d = 0.0001 # 0.0004
 
 # fix random seeds
 RANDOM_SEED = 42
@@ -55,15 +61,20 @@ random.seed(RANDOM_SEED)
 np.random.seed(RANDOM_SEED)
 
 # setup data loader
+
 dataset, data_loader = get_rotated_mnist_dataloader(root=project_root,
                                                     batch_size=BATCH_SIZE,
                                                     shuffle=True,
                                                     one_hot_encode=True,
-                                                    num_examples=12000,
+                                                    num_examples=60000,
                                                     num_rotations=0,
-                                                    no_labels='no_label' in GEN_ARCH and 'no_label' in DISC_ARCH)
+                                                    no_labels='no_label' in GEN_ARCH and 'no_label' in DISC_ARCH,
+                                                    img_size=64)
+'''
+dataset, data_loader = get_standard_mnist_dataloader(root=project_root,
+                                                     img_size=64)
+'''
 print(f'Total number of training examples: {len(dataset)}')
-# print(f'Training data path: {dataset.data_path}')
 
 # setup generator and discriminator
 gen = Generator(n_classes=NUM_CLASSES, gen_arch=GEN_ARCH, latent_dim=LATENT_DIM)
@@ -76,9 +87,9 @@ print(f'Trainable parameters in Discriminator: {n_trainable_params_disc}\n')
 
 # orthogonal initialization
 print('Initializing Generator Weights')
-gen.apply(init_generator_weights_z2)
+initialize_weights(gen, gen.gen_arch)
 print('Initializing Discriminator Weights')
-disc.apply(init_discriminator_weights_z2)
+initialize_weights(disc, disc.disc_arch)
 
 gen = gen.to(device)
 disc = disc.to(device)
@@ -101,11 +112,21 @@ log_dir = f'runs/{GEN_ARCH}/{current_date}'
 summ_writer = SummaryWriter(log_dir)
 # create fixed latent noise
 no_examples_for_summary = 40
+
 fixed_noise = torch.randn(no_examples_for_summary, LATENT_DIM).to(device)
+
 # create fixed random labels
 #rand_labels = torch.randint(0, 10, (32,))
 #fixed_labels = torch.zeros(32, 10)
 #fixed_labels = fixed_labels.scatter_(1, rand_labels.unsqueeze(1), 1).to(device)
+#print(f'The fixed labels are: \n {rand_labels.view(4, 8).numpy()}')
+'''
+The fixed labels are: 
+ [[3 8 9 6 7 4 5 0]
+ [7 4 3 4 4 3 3 3]
+ [4 3 3 6 7 1 5 7]
+ [5 3 7 1 7 7 0 8]]
+'''
 
 l = torch.zeros(no_examples_for_summary, 10)
 for i in range(4):
@@ -118,20 +139,8 @@ print(f'The fixed labels are: \n {fixed_labels.nonzero(as_tuple=True)[1].view(4,
 if 'no_label' in GEN_ARCH:
     fixed_labels = None
 
-'''
-The fixed labels are: 
- [[3 8 9 6 7 4 5 0]
- [7 4 3 4 4 3 3 3]
- [4 3 3 6 7 1 5 7]
- [5 3 7 1 7 7 0 8]]
-'''
-
-#print(f'The fixed labels are: \n {rand_labels.view(4, 8).numpy()}')
-
-n_steps_for_summary = 10
-
 # setup for checkpointing and saving trained models
-n_iterations_for_checkpointing = 200
+n_steps_for_summary = 10
 trained_models_path = f'trained_models/{GEN_ARCH}/{current_date}'
 if not os.path.isdir(trained_models_path):
     os.mkdir(path=trained_models_path)
@@ -151,33 +160,24 @@ def save_checkpoint(n_iterations):
     }, checkpoint_path)
 
 
-def get_opinions_for_rel_avg_loss(real_batch, labels, noise_batch):
-    # TODO: is it inefficient to move this function out here?
-    fake_batch = gen(noise_batch, labels)
-
-    disc_opinion_real = disc([real_batch, labels])
-    disc_opinion_fake = disc([fake_batch, labels])
-
-    real_fake_rel_avg_opinion = (disc_opinion_real - torch.mean(disc_opinion_fake, dim=0))
-    fake_real_rel_avg_opinion = (disc_opinion_fake - torch.mean(disc_opinion_real, dim=0))
-
-    return real_fake_rel_avg_opinion, fake_real_rel_avg_opinion
-
-
 def gen_training_step(real_batch, labels, noise_batch, step, eps=EPS):
     fake_batch = gen(noise_batch, labels)
 
-    disc_opinion_real = disc([real_batch, labels])
-    disc_opinion_fake = disc([fake_batch, labels])
+    if LOSS_TYPE == 'rel_avg':
+        disc_opinion_real = disc([real_batch, labels])
+        disc_opinion_fake = disc([fake_batch, labels])
 
-    real_fake_rel_avg_opinion = (disc_opinion_real - torch.mean(disc_opinion_fake, dim=0))
-    fake_real_rel_avg_opinion = (disc_opinion_fake - torch.mean(disc_opinion_real, dim=0))
+        real_fake_rel_avg_opinion = (disc_opinion_real - torch.mean(disc_opinion_fake, dim=0))
+        fake_real_rel_avg_opinion = (disc_opinion_fake - torch.mean(disc_opinion_real, dim=0))
 
-    # loss, relativistic average loss
-    gen_loss = torch.mean(
-        - torch.mean(torch.log(torch.sigmoid(fake_real_rel_avg_opinion) + eps), dim=0)
-        - torch.mean(torch.log(1 - torch.sigmoid(real_fake_rel_avg_opinion) + eps), dim=0)
-    )
+        # loss, relativistic average loss
+        gen_loss = torch.mean(
+            - torch.mean(torch.log(torch.sigmoid(fake_real_rel_avg_opinion) + eps), dim=0)
+            - torch.mean(torch.log(1 - torch.sigmoid(real_fake_rel_avg_opinion) + eps), dim=0)
+        )
+    elif LOSS_TYPE == 'wasserstein':
+        disc_opinion_fake = disc([fake_batch, labels]).reshape(-1)
+        gen_loss = -torch.mean(disc_opinion_fake)
 
     gen.zero_grad()
     gen_loss.backward()
@@ -197,41 +197,30 @@ def disc_training_step(real_batch, labels, noise_batch, step, disc_step, eps=EPS
     disc_opinion_real = disc([real_batch, labels])
     disc_opinion_fake = disc([fake_batch, labels])
 
-    real_fake_rel_avg_opinion = (disc_opinion_real - torch.mean(disc_opinion_fake, dim=0))
-    fake_real_rel_avg_opinion = (disc_opinion_fake - torch.mean(disc_opinion_real, dim=0))
+    if LOSS_TYPE == 'rel_avg':
+        real_fake_rel_avg_opinion = (disc_opinion_real - torch.mean(disc_opinion_fake, dim=0))
+        fake_real_rel_avg_opinion = (disc_opinion_fake - torch.mean(disc_opinion_real, dim=0))
 
-    disc_loss = torch.mean(
-        - torch.mean(torch.log(torch.sigmoid(real_fake_rel_avg_opinion) + eps), dim=0)
-        - torch.mean(torch.log(1 - torch.sigmoid(fake_real_rel_avg_opinion) + eps), dim=0)
-    )
+        disc_loss = torch.mean(
+            - torch.mean(torch.log(torch.sigmoid(real_fake_rel_avg_opinion) + eps), dim=0)
+            - torch.mean(torch.log(1 - torch.sigmoid(fake_real_rel_avg_opinion) + eps), dim=0)
+        )
+    elif LOSS_TYPE == 'wasserstein':
+        disc_loss = (-(torch.mean(disc_opinion_real.reshape(-1)) - torch.mean(disc_opinion_fake.reshape(-1))))
 
     # TODO check Gradient Penalty
-    new_real_batch = 1.0 * real_batch
-    new_real_batch.requires_grad = True
-    new_labels = 1.0 * labels
-    new_real_batch = new_real_batch.to(device)
-    new_labels = new_labels.to(device)
-    disc_opinion_real_new = disc([new_real_batch, new_labels])
+    if GP_TYPE == 'zero_centered':
+        gradient_penalty = zero_centered_gp_real_data(disc, real_batch, labels, device)
+    elif GP_TYPE == 'vanilla':
+        gradient_penalty = vanilla_gp(disc, real_batch, fake_batch, device)
+    elif GP_TYPE == 'no_gp':
+        gradient_penalty = 0.0
 
-    gradient = torch.autograd.grad(
-        inputs=new_real_batch,
-        outputs=disc_opinion_real_new,
-        grad_outputs=torch.ones_like(disc_opinion_real_new),
-        create_graph=True,
-        retain_graph=True
-    )[0]
-    # gradient.shape: [batch_size, channels, height, width]
-    gradient = gradient.view(gradient.shape[0], -1)
-    # gradient.shape: [batch_size, channels * height * width]
-    gradient_squared = torch.square(gradient)
-    #gradient_norm = gradient.norm(2, dim=1)
-    grad_square_sum = torch.sum(gradient_squared, dim=1)
-    gradient_penalty = (GP_STRENGTH / 2.0) * torch.mean(grad_square_sum)
-
-    total_disc_loss = disc_loss + gradient_penalty
+    total_disc_loss = disc_loss + GP_STRENGTH * gradient_penalty
 
     disc.zero_grad()
-    total_disc_loss.backward()
+    # TODO: double check retain_graph=True for gGAN architectures
+    total_disc_loss.backward(retain_graph=True)
     disc_optim.step()
 
     if step % n_steps_for_summary == 0 and disc_step == 0:
@@ -277,12 +266,19 @@ for epoch in range(EPOCHS):
 
         step = i + epoch * steps_per_epoch
         # update discriminator
+
+        # TODO double check this with other architectures
+        # we might need to move this back into inner loops
+        # now we use the same real images and labels to train the discriminator for DISC_UPDATE_STEPS
+        # and also train the generator on the same real images
+        real, labels = next(iter(data_loader))
         for j in range(DISC_UPDATE_STEPS):
-            real, labels = next(iter(data_loader))
-            noise = torch.randn((real.shape[0], LATENT_DIM))
+
+            noise = torch.randn(real.shape[0], LATENT_DIM).to(device)
+
             real = real.to(device)
             labels = labels.to(device)
-            noise = noise.to(device)
+
 
             disc_training_step(real_batch=real,
                                labels=labels,
@@ -292,11 +288,10 @@ for epoch in range(EPOCHS):
                                )
 
         # update generator
-        real, labels = next(iter(data_loader))
-        noise = torch.randn((real.shape[0], LATENT_DIM))
-        real = real.to(device)
-        labels = labels.to(device)
-        noise = noise.to(device)
+        #real, labels = next(iter(data_loader))
+        noise = torch.randn(real.shape[0], LATENT_DIM).to(device)
+        #real = real.to(device)
+        #labels = labels.to(device)
 
         gen_training_step(real_batch=real,
                           labels=labels,
