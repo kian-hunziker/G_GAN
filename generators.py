@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from torch.nn.utils import spectral_norm as SN
-from blocks import CCBN
+from blocks import CCBN, GenBlockDCGAN
 from layers import GFiLM
 from utils import pooling, g_batch_norm
 try:
@@ -15,7 +15,8 @@ class Generator(nn.Module):
         """
         Constructor for a generator
         :param n_classes: number of classes for conditional use
-        :param gen_arch: Architecture type. One of {'z2_rot_mnist', 'p4_rot_mnist', 'z2_rot_mnist_no_label'}
+        :param gen_arch: Architecture type.
+                One of {'z2_rot_mnist', 'p4_rot_mnist', 'z2_rot_mnist_no_label', 'vanilla'}
         :param latent_dim: Dimensionality of latent noise input
         """
         super(Generator, self).__init__()
@@ -137,6 +138,22 @@ class Generator(nn.Module):
                                      stride=1,
                                      padding=1,
                                      bias=False))
+        elif self.gen_arch == 'vanilla':
+            features_g = 16
+            self.gen = nn.Sequential(
+                GenBlockDCGAN(latent_dim, features_g * 16, 4, 1, 0),
+                GenBlockDCGAN(features_g * 16, features_g * 8, 4, 2, 1),
+                GenBlockDCGAN(features_g * 8, features_g * 4, 4, 2, 1),
+                GenBlockDCGAN(features_g * 4, features_g * 2, 4, 2, 1),
+                nn.ConvTranspose2d(
+                    features_g * 2,
+                    out_channels=1,
+                    kernel_size=4,
+                    stride=2,
+                    padding=1
+                ),
+                nn.Tanh()  # [-1, 1]
+            )
 
     def forward(self, latent_noise: torch.Tensor, label: torch.Tensor = None) -> torch.Tensor:
         """
@@ -155,7 +172,7 @@ class Generator(nn.Module):
             # gen: input for convolutions, shape: proj_shape
             gen = cla.reshape(tuple([-1]) + self.proj_shape)
 
-        else:
+        elif self.gen_arch == 'z2_rot_mnist' or self.gen_arch == 'p4_rot_mnist':
             label_projection = self.label_projection_layer(label)
             cla = torch.cat((latent_noise, label_projection), dim=1)
             cla = self.projected_noise_and_classes(cla)
@@ -214,6 +231,9 @@ class Generator(nn.Module):
             fea = self.conv4(fea)
             fea = pooling.group_max_pool(fea, group='C4')
 
+        elif self.gen_arch == 'vanilla':
+            return self.gen(latent_noise.unsqueeze(-1).unsqueeze(-1))
+
         out = F.tanh(fea)
         return out
 
@@ -229,6 +249,25 @@ def init_generator_weights_z2(m, show_details=False):
         if show_details is True:
             print(f'initialized film layer {m}')
 
+
+def initialize_weights(model: nn.Module, arch: str, show_details: bool = False):
+    if arch == 'vanilla':
+        # initialize weights according to DCGAN paper
+        for m in model.modules():
+            if isinstance(m, (nn.Conv2d, nn.ConvTranspose2d, nn.BatchNorm2d)):
+                nn.init.normal_(m.weight.data, 0.0, 0.02)
+    else:
+        # initialize weights orthogonally according to gGan paper
+        for m in model.modules():
+            if isinstance(m, nn.Conv2d):
+                nn.init.orthogonal_(m.weight)
+                if show_details is True:
+                    print(f'initialized {m}')
+            elif isinstance(m, GFiLM):
+                nn.init.orthogonal_(m.beta_linear.weight)
+                nn.init.orthogonal_(m.gamma_linear.weight)
+                if show_details is True:
+                    print(f'initialized film layer {m}')
 
 def generator_debug_test(gen_arch):
     gen = Generator(gen_arch=gen_arch)
