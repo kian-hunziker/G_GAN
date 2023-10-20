@@ -45,13 +45,14 @@ def get_standard_mnist_dataloader(root,
                                   batch_size=64,
                                   mean=0.5,
                                   std=0.5,
-                                  shuffle=True) -> (torch.utils.data.Dataset, torch.utils.data.DataLoader):
+                                  shuffle=True,
+                                  img_size=28) -> (torch.utils.data.Dataset, torch.utils.data.DataLoader):
 
     transform = transforms.Compose(
-        [transforms.ToTensor(), transforms.Normalize((mean,), (std,))]
+        [transforms.ToTensor(), transforms.Resize(img_size), transforms.Normalize((mean,), (std,))]
     )
-
-    dataset = datasets.MNIST(root=root, train=True, transform=transform, download=True)
+    data_path = f'{root}/datasets'
+    dataset = datasets.MNIST(root=data_path, train=True, transform=transform, download=True)
     data_loader = torch.utils.data.DataLoader(dataset, batch_size=batch_size, shuffle=shuffle)
     return dataset, data_loader
 
@@ -65,10 +66,11 @@ def get_rotated_mnist_dataloader(root,
                                  max_angle=180,
                                  shuffle=True,
                                  one_hot_encode=False,
-                                 no_labels=False) -> (RotMnistDataset, torch.utils.data.DataLoader):
+                                 no_labels=False,
+                                 img_size=28) -> (RotMnistDataset, torch.utils.data.DataLoader):
     # TODO: do we normalize the MNIST dataset?
     transform = transforms.Compose(
-        [transforms.ToTensor(), transforms.Normalize((mean,), (std,))]
+        [transforms.ToTensor(), transforms.Resize(img_size), transforms.Normalize((mean,), (std,))]
     )
     # check if dataset already exists
     suffix = f'_{num_examples}ex_{num_rotations}rot_{max_angle}deg.npy'
