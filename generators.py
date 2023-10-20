@@ -38,7 +38,7 @@ class Generator(nn.Module):
             self.projected_noise_and_classes = SN(nn.Linear(in_features=latent_dim + self.label_emb_dim,
                                                             out_features=self.proj_dim))
 
-        if self.gen_arch == 'z2_rot_mnist' or self.gen_arch == 'z2_rot_mnist_no_label':
+        if self.gen_arch == 'z2_rot_mnist':
             self.conv1 = SN(nn.Conv2d(in_channels=128,
                                       out_channels=512,
                                       kernel_size=3,
@@ -69,6 +69,35 @@ class Generator(nn.Module):
             self.ccbn2 = CCBN(feature_map_shape=[128, 28, 28],
                               proj_dim=self.proj_dim,
                               group='Z2')
+            self.conv4 = SN(nn.Conv2d(in_channels=128,
+                                      out_channels=1,
+                                      kernel_size=3,
+                                      padding='same',
+                                      bias=False))
+        elif self.gen_arch == 'z2_rot_mnist_no_label':
+            # same as z2_rot_mnist but without CCBN layers. Instead, we set affine=True for BN layers
+            # so we should still learn an affine transformation, but it is not dependent on noise input or labels
+            self.conv1 = SN(nn.Conv2d(in_channels=128,
+                                      out_channels=512,
+                                      kernel_size=3,
+                                      padding='same',
+                                      bias=True))
+            self.conv2 = SN(nn.Conv2d(in_channels=512,
+                                      out_channels=256,
+                                      kernel_size=3,
+                                      padding='same',
+                                      bias=False))
+            self.BN1 = nn.BatchNorm2d(num_features=256,
+                                      momentum=0.1,
+                                      affine=True)
+            self.conv3 = SN(nn.Conv2d(in_channels=256,
+                                      out_channels=128,
+                                      kernel_size=3,
+                                      padding='same',
+                                      bias=False))
+            self.BN2 = nn.BatchNorm2d(num_features=128,
+                                      momentum=0.1,
+                                      affine=True)
             self.conv4 = SN(nn.Conv2d(in_channels=128,
                                       out_channels=1,
                                       kernel_size=3,
@@ -133,7 +162,7 @@ class Generator(nn.Module):
             # TODO make reshape nicer
             gen = cla.reshape(tuple([-1]) + self.proj_shape)
 
-        if 'z2_rot_mnist' in self.gen_arch:
+        if self.gen_arch == 'z2_rot_mnist':
             # now cla should be: [batch_size,128, 7, 7]
             fea = self.conv1(gen)
             fea = F.relu(fea)
@@ -152,6 +181,17 @@ class Generator(nn.Module):
             # CCBN
             fea = self.ccbn2([fea, cla])
             fea = F.relu(fea)
+            fea = self.conv4(fea)
+            # [batch_size, 1, 28, 28
+
+        elif self.gen_arch == 'z2_rot_mnist_no_label':
+            fea = F.relu(self.conv1(gen))
+            fea = F.interpolate(fea, scale_factor=2)
+            # [batch_size, 512, 14, 14]
+            fea = F.relu(self.BN1(self.conv2(fea)))
+            # [batch_size, 256, 14, 14]
+            fea = F.interpolate(fea, scale_factor=2)
+            fea = F.relu(self.BN2(self.conv3(fea)))
             fea = self.conv4(fea)
             # [batch_size, 1, 28, 28
 

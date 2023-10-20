@@ -39,13 +39,14 @@ class Discriminator(nn.Module):
                                     group_equivariance=False,
                                     pool='avg')
             if self.disc_arch == 'z2_rot_mnist':
-                # 3 x 3 feature?
+                # label embedding layer for projection output
                 self.label_emb_linear = nn.Linear(in_features=n_classes,
                                                   out_features=512)
 
                 self.last_layer = SN(nn.Linear(in_features=512,
                                                out_features=1))
             elif self.disc_arch == 'z2_rot_mnist_no_label':
+                # omit label embedding layer
                 self.last_layer = SN(nn.Linear(in_features=512,
                                                out_features=1))
         elif self.disc_arch == 'p4_rot_mnist':
