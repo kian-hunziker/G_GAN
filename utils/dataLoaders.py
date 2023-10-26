@@ -46,13 +46,14 @@ def get_standard_mnist_dataloader(root,
                                   mean=0.5,
                                   std=0.5,
                                   shuffle=True,
-                                  img_size=28) -> (torch.utils.data.Dataset, torch.utils.data.DataLoader):
+                                  img_size=28,
+                                  train=True) -> (torch.utils.data.Dataset, torch.utils.data.DataLoader):
 
     transform = transforms.Compose(
         [transforms.ToTensor(), transforms.Resize(img_size), transforms.Normalize((mean,), (std,))]
     )
     data_path = f'{root}/datasets'
-    dataset = datasets.MNIST(root=data_path, train=True, transform=transform, download=True)
+    dataset = datasets.MNIST(root=data_path, train=train, transform=transform, download=True)
     data_loader = torch.utils.data.DataLoader(dataset, batch_size=batch_size, shuffle=shuffle)
     return dataset, data_loader
 
@@ -67,13 +68,19 @@ def get_rotated_mnist_dataloader(root,
                                  shuffle=True,
                                  one_hot_encode=False,
                                  no_labels=False,
-                                 img_size=28) -> (RotMnistDataset, torch.utils.data.DataLoader):
+                                 img_size=28,
+                                 train=True) -> (RotMnistDataset, torch.utils.data.DataLoader):
     # TODO: do we normalize the MNIST dataset?
     transform = transforms.Compose(
         [transforms.ToTensor(), transforms.Resize(img_size), transforms.Normalize((mean,), (std,))]
     )
     # check if dataset already exists
-    suffix = f'_{num_examples}ex_{num_rotations}rot_{max_angle}deg.npy'
+    suffix = f'_{num_examples}ex_{num_rotations}rot_{max_angle}deg'
+    if train is True:
+        suffix = suffix + '.npy'
+    else:
+        suffix = suffix + '_test.npy'
+
     rot_mnist_path = f'{root}/datasets/RotMNIST'
     data_path = f'{rot_mnist_path}/data{suffix}'
     label_path = f'{rot_mnist_path}/labels{suffix}'
@@ -86,7 +93,8 @@ def get_rotated_mnist_dataloader(root,
         utils.rotateMNIST.generate_rotated_mnist_dataset(root=root,
                                                          num_examples=num_examples,
                                                          num_rotations=num_rotations,
-                                                         max_angle=max_angle)
+                                                         max_angle=max_angle,
+                                                         train=train)
 
     dataset = RotMnistDataset(data_path=data_path,
                               label_path=label_path,

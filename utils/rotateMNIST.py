@@ -7,7 +7,7 @@ from scipy import ndimage
 from tqdm import tqdm
 
 
-def generate_rotated_mnist_dataset(root, num_examples=60000, num_rotations=8, max_angle=180):
+def generate_rotated_mnist_dataset(root, num_examples=60000, num_rotations=8, max_angle=180, train=True):
     """
     :param root:
     :param num_examples: number of mnist images that are used for augmentation
@@ -21,7 +21,7 @@ def generate_rotated_mnist_dataset(root, num_examples=60000, num_rotations=8, ma
         num_examples = 60000
 
     # load standard MNIST data as numpy array
-    dataset = datasets.MNIST(root=root + '/datasets', train=True, transform=transforms.ToTensor(), download=True)
+    dataset = datasets.MNIST(root=root + '/datasets', train=train, transform=transforms.ToTensor(), download=True)
     images, labels = dataset.data.numpy(), dataset.targets.numpy()
 
     # check data directory
@@ -81,7 +81,12 @@ def generate_rotated_mnist_dataset(root, num_examples=60000, num_rotations=8, ma
     plt.show()
 
     # save images and labels
-    suffix = f'_{num_examples}ex_{num_rotations}rot_{max_angle}deg.npy'
+    suffix = f'_{num_examples}ex_{num_rotations}rot_{max_angle}deg'
+    if train is True:
+        suffix = suffix + '.npy'
+    else:
+        suffix = suffix + '_test.npy'
+
     np.save(dir_path + '/data' + suffix, expanded_images)
     np.save(dir_path + '/labels' + suffix, expanded_labels)
 
