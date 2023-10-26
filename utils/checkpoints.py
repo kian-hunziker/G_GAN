@@ -13,7 +13,7 @@ def load_checkpoint(checkpoint_path, device='cpu'):
     checkpoint = torch.load(checkpoint_path, map_location=device)
     gen_arch = checkpoint['gen_arch']
     disc_arch = checkpoint['disc_arch']
-    if gen_arch == 'vanilla':
+    if gen_arch == 'vanilla' or gen_arch == 'vanilla_small':
         latent_dim = 100
     else:
         latent_dim  = 64
