@@ -187,14 +187,12 @@ class Generator(nn.Module):
             cla = self.projected_noise_layer(latent_noise)
             # gen: input for convolutions, shape: proj_shape
             gen = cla.reshape(tuple([-1]) + self.proj_shape)
-
         elif self.gen_arch == 'z2_rot_mnist' or self.gen_arch == 'p4_rot_mnist':
             label_projection = self.label_projection_layer(label)
             cla = torch.cat((latent_noise, label_projection), dim=1)
             cla = self.projected_noise_and_classes(cla)
             # TODO make reshape nicer
             gen = cla.reshape(tuple([-1]) + self.proj_shape)
-
         if self.gen_arch == 'z2_rot_mnist':
             # now cla should be: [batch_size,128, 7, 7]
             fea = self.conv1(gen)
@@ -216,7 +214,6 @@ class Generator(nn.Module):
             fea = F.relu(fea)
             fea = self.conv4(fea)
             # [batch_size, 1, 28, 28
-
         elif self.gen_arch == 'z2_rot_mnist_no_label':
             fea = F.relu(self.conv1(gen))
             fea = F.interpolate(fea, scale_factor=2)
@@ -226,8 +223,7 @@ class Generator(nn.Module):
             fea = F.interpolate(fea, scale_factor=2)
             fea = F.relu(self.BN2(self.conv3(fea)))
             fea = self.conv4(fea)
-            # [batch_size, 1, 28, 28
-
+            # [batch_size, 1, 28, 28]
         elif self.gen_arch == 'p4_rot_mnist':
             fea = F.relu(self.conv1(gen))
 
@@ -246,7 +242,6 @@ class Generator(nn.Module):
 
             fea = self.conv4(fea)
             fea = pooling.group_max_pool(fea, group='C4')
-
         elif self.gen_arch == 'vanilla' or self.gen_arch == 'vanilla_small':
             return self.gen(latent_noise.unsqueeze(-1).unsqueeze(-1))
 
@@ -267,13 +262,15 @@ def init_generator_weights_z2(m, show_details=False):
 
 
 def initialize_weights(model: nn.Module, arch: str, show_details: bool = False):
-    if arch == 'vanilla' or arch == 'vanilla_small':
+    if arch == 'vanilla' or arch == 'vanilla_small' or arch == 'z2_rot_mnist_no_label':
+        print(f'  ->  Initializing from normal distribution')
         # initialize weights according to DCGAN paper
         for m in model.modules():
             if isinstance(m, (nn.Conv2d, nn.ConvTranspose2d, nn.BatchNorm2d)):
                 nn.init.normal_(m.weight.data, 0.0, 0.02)
     else:
         # initialize weights orthogonally according to gGan paper
+        print(f'  ->  Orthogonal initialization')
         for m in model.modules():
             if isinstance(m, nn.Conv2d):
                 nn.init.orthogonal_(m.weight)
