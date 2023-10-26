@@ -33,16 +33,16 @@ class_to_search = 0
 # Hyperparameters
 lr = 1e-2
 weight_decay = 1.0
-n_iterations = 300
-img_size = 64
+n_iterations = 100
+img_size = 28
 latent_dim = 100
 
-n_regressions = 500
+n_regressions = 100
 
 step_for_plot = n_iterations
 plot_individual_loss_and_mag = False
 
-gen, _ = load_checkpoint('trained_models/vanilla/2023-10-20 13:07:54/checkpoint_20000', device=device)
+gen, _ = load_checkpoint('trained_models/vanilla_small/2023-10-26 14:35:51/checkpoint_7000', device=device)
 '''
 gen = Generator()
 gen.load_state_dict(
@@ -140,8 +140,11 @@ for target_idx in range(n_regressions):
 
 #print(f'final latent vector: \n{latent_noise}')
 prog_bar.close()
+all_labels = torch.zeros(n_regressions, 10)
+all_labels[:, class_to_search] = torch.ones(n_regressions)
 
-all_predictions = gen(latent_noise_matrix, None)
+
+all_predictions = gen(latent_noise_matrix.to(device), all_labels.to(device))
 snrs = peak_signal_noise_ratio(preds=all_predictions,
                                target=all_targets,
                                reduction='none',
