@@ -12,7 +12,7 @@ class Discriminator(nn.Module):
         """
         :param img_shape: tuple [n_channels, height, width]
         :param disc_arch: architecture type.
-                One of {'z2_rot_mnist', 'p4_rot_mnist', 'z2_rot_mnist_no_label', 'vanilla'}
+                One of {'z2_rot_mnist', 'p4_rot_mnist', 'z2_rot_mnist_no_label', 'vanilla', 'vanilla_small'}
         :param n_classes: number of classes, int
         """
         super(Discriminator, self).__init__()
@@ -83,6 +83,17 @@ class Discriminator(nn.Module):
                 DiscBlockDCGAN(features_d * 4, features_d * 8, 4, 2, 1),
                 nn.Conv2d(features_d * 8, 1, kernel_size=4, stride=2, padding=0),
             )
+        elif self.disc_arch == 'vanilla_small':
+            features_d = 16
+            self.disc = nn.Sequential(
+                nn.Conv2d(img_shape[0], features_d, kernel_size=4, stride=2, padding=1),
+                nn.LeakyReLU(0.2),
+                DiscBlockDCGAN(features_d, features_d * 2, 4, 2, 1),
+                DiscBlockDCGAN(features_d * 2, features_d * 4, 4, 2, 1),
+                #DiscBlockDCGAN(features_d * 4, features_d * 8, 4, 2, 1),
+                nn.Conv2d(features_d * 4, 1, kernel_size=4, stride=2, padding=1),
+            )
+
 
     def forward(self, x: list[torch.Tensor, torch.Tensor]):
         """
@@ -108,7 +119,7 @@ class Discriminator(nn.Module):
             # now fea.shape: [batch_size, n_channels, height, width]
             flat = F.avg_pool2d(fea, kernel_size=fea.shape[-1])
 
-        elif self.disc_arch == 'vanilla':
+        elif self.disc_arch == 'vanilla' or self.disc_arch == 'vanilla_small':
             return self.disc(x[0])
 
         flat = torch.squeeze(flat)

@@ -16,7 +16,7 @@ class Generator(nn.Module):
         Constructor for a generator
         :param n_classes: number of classes for conditional use
         :param gen_arch: Architecture type.
-                One of {'z2_rot_mnist', 'p4_rot_mnist', 'z2_rot_mnist_no_label', 'vanilla'}
+                One of {'z2_rot_mnist', 'p4_rot_mnist', 'z2_rot_mnist_no_label', 'vanilla', 'vanilla_small'}
         :param latent_dim: Dimensionality of latent noise input
         """
         super(Generator, self).__init__()
@@ -153,6 +153,23 @@ class Generator(nn.Module):
                 ),
                 nn.Tanh()  # [-1, 1]
             )
+        elif self.gen_arch == 'vanilla_small':
+            features_g = 16
+            self.gen = nn.Sequential(
+                GenBlockDCGAN(latent_dim, 256, 4, 1, 0),
+                GenBlockDCGAN(256, 128, 4, 2, 1),
+                GenBlockDCGAN(128, 64, 4, 2, 1),
+                GenBlockDCGAN(64, 32, 4, 2, 1),
+                # only change these dimensions to generate images of dimension [28, 28]
+                nn.ConvTranspose2d(
+                    32,
+                    out_channels=1,
+                    kernel_size=1,
+                    stride=1,
+                    padding=2
+                ),
+                nn.Tanh()  # [-1, 1]
+            )
 
     def forward(self, latent_noise: torch.Tensor, label: torch.Tensor = None) -> torch.Tensor:
         """
@@ -230,7 +247,7 @@ class Generator(nn.Module):
             fea = self.conv4(fea)
             fea = pooling.group_max_pool(fea, group='C4')
 
-        elif self.gen_arch == 'vanilla':
+        elif self.gen_arch == 'vanilla' or self.gen_arch == 'vanilla_small':
             return self.gen(latent_noise.unsqueeze(-1).unsqueeze(-1))
 
         out = F.tanh(fea)
@@ -250,7 +267,7 @@ def init_generator_weights_z2(m, show_details=False):
 
 
 def initialize_weights(model: nn.Module, arch: str, show_details: bool = False):
-    if arch == 'vanilla':
+    if arch == 'vanilla' or arch == 'vanilla_small':
         # initialize weights according to DCGAN paper
         for m in model.modules():
             if isinstance(m, (nn.Conv2d, nn.ConvTranspose2d, nn.BatchNorm2d)):
