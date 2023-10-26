@@ -13,7 +13,11 @@ def load_checkpoint(checkpoint_path, device='cpu'):
     checkpoint = torch.load(checkpoint_path, map_location=device)
     gen_arch = checkpoint['gen_arch']
     disc_arch = checkpoint['disc_arch']
-    gen = Generator(gen_arch=gen_arch)
+    if gen_arch == 'vanilla':
+        latent_dim = 100
+    else:
+        latent_dim  = 64
+    gen = Generator(gen_arch=gen_arch, latent_dim=latent_dim)
     disc = Discriminator([1, 28, 28], disc_arch=disc_arch)
     gen.load_state_dict(checkpoint['generator'])
     disc.load_state_dict(checkpoint['discriminator'])
