@@ -4,7 +4,7 @@ from discriminators import Discriminator
 from generators import Generator
 
 
-def load_gen_disc_from_checkpoint(checkpoint_path, device='cpu') -> tuple[Generator, Discriminator]:
+def load_gen_disc_from_checkpoint(checkpoint_path, device='cpu', print_to_console=True) -> tuple[Generator, Discriminator]:
     """
     :param checkpoint_path: complete path of saved checkpoint
     :param device: device to load the networks to
@@ -26,12 +26,13 @@ def load_gen_disc_from_checkpoint(checkpoint_path, device='cpu') -> tuple[Genera
     gen.eval()
     disc.eval()
 
-    print('-' * 32)
-    print(f'Loaded checkpoint from: {checkpoint_path}')
-    print(f'Generator architecture: {gen_arch}')
-    print(f'Discriminator architecture: {disc_arch}')
-    print('-' * 32)
-    print('\n')
+    if print_to_console is True:
+        print('-' * 32)
+        print(f'Loaded checkpoint from: {checkpoint_path}')
+        print(f'Generator architecture: {gen_arch}')
+        print(f'Discriminator architecture: {disc_arch}')
+        print('-' * 32)
+        print('\n')
 
     return gen, disc
 
