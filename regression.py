@@ -10,8 +10,30 @@ from torchmetrics.functional.image import peak_signal_noise_ratio
 import random
 from tqdm import tqdm
 
+import generators
 from utils.dataLoaders import get_rotated_mnist_dataloader
-from utils.checkpoints import load_gen_disc_from_checkpoint
+from utils.checkpoints import load_gen_disc_from_checkpoint, load_checkpoint, print_checkpoint
+
+from threading import Thread
+
+device = 'cpu'
+# fix random seed for target selection. Torch seed is not fixed.
+random.seed(2)
+
+# for conditional generators we need to specify which class we're looking at
+CLASS_TO_SEARCH = 2
+
+# Hyperparameters
+LR = 1e-2
+WEIGHT_DECAY = 1.0
+N_ITERATIONS = 100
+img_size = 28
+latent_dim = 64
+
+N_REGRESSIONS = 100
+
+step_for_plot = N_ITERATIONS
+plot_individual_loss_and_mag = False
 
 
 def plot_comparison(target: torch.Tensor, approx: torch.Tensor, title: str):
@@ -23,37 +45,56 @@ def plot_comparison(target: torch.Tensor, approx: torch.Tensor, title: str):
     plt.suptitle(title)
     plt.show()
 
-device = 'cpu'
-# fix random seed for target selection. Torch seed is not fixed.
-random.seed(2)
 
-# for conditional generators we need to specify which class we're looking at
-class_to_search = 2
+def single_regression(gen: generators.Generator, n_iterations: int, tar: torch.Tensor, class_to_search: int,
+                      lr: float = 1e-2, weight_decay: float = 1.0) -> torch.Tensor:
+    noise = torch.zeros(1, latent_dim, requires_grad=True, dtype=torch.float, device=device)
+    label = torch.zeros(1, 10, device=device)
+    label[0, class_to_search] = 1
 
-# Hyperparameters
-lr = 1e-2
-weight_decay = 1.0
-n_iterations = 100
-img_size = 28
-latent_dim = 64
+    optim = torch.optim.Adam(params=[noise], lr=lr, weight_decay=weight_decay)
+    criterion = torch.nn.MSELoss(reduction='sum')
 
-n_regressions = 100
+    for i in range(n_iterations):
+        optim.zero_grad()
 
-step_for_plot = n_iterations
-plot_individual_loss_and_mag = False
+        approx = gen(noise, label).squeeze()
+        loss = criterion(approx, tar)
 
-gen, _ = load_gen_disc_from_checkpoint('trained_models/p4_rot_mnist/2023-10-31 14:16:50/checkpoint_6000', device=device)
-'''
-gen = Generator()
-gen.load_state_dict(
-    torch.load('trained_models/z2_rot_mnist/2023-10-13 18:23:50/generator_test',
-               map_location=device)
-)
-gen.eval()
-'''
+        loss.backward()
+        optim.step()
 
-# empty matrix to store regression results in
-latent_noise_matrix = torch.zeros(n_regressions, latent_dim, dtype=torch.float)
+        if prog_bar:
+            prog_bar.update(1)
+
+    return noise
+
+
+def multiple_regression(targets_numpy: np.ndarray, transform, start_idx, path):
+    generator, _ = load_gen_disc_from_checkpoint(checkpoint_path=path, device=device, print_to_console=False)
+
+    for target_idx in range(targets_numpy.shape[0]):
+        target = targets_numpy[target_idx]
+        target = transform(target).squeeze()
+        target = target + torch.randn((img_size, img_size)) * 0.0
+        target = target.to(device)
+
+        latent_noise = single_regression(gen=generator,
+                                         n_iterations=N_ITERATIONS,
+                                         tar=target,
+                                         class_to_search=CLASS_TO_SEARCH,
+                                         lr=LR,
+                                         weight_decay=WEIGHT_DECAY)
+
+        #prog_bar.update(N_ITERATIONS)
+
+        latent_noise_matrix[start_idx + target_idx] = latent_noise.detach()
+        all_targets[start_idx + target_idx] = target
+
+
+checkpoint_path = 'trained_models/p4_rot_mnist/2023-10-31 14:16:50/checkpoint_20000'
+gen, _ = load_gen_disc_from_checkpoint(checkpoint_path=checkpoint_path, device=device)
+print_checkpoint(load_checkpoint(path=checkpoint_path, device=device))
 
 # load test dataset
 project_root = os.getcwd()
@@ -65,10 +106,8 @@ test_dataset, _ = get_rotated_mnist_dataloader(root=project_root,
                                                num_rotations=0,
                                                train=False)
 
-indices_of_target_class = np.where(test_dataset.targets == class_to_search)[0]
-targets = test_dataset.data[indices_of_target_class][:n_regressions]
-
-all_targets = torch.zeros(n_regressions, 1, img_size, img_size)
+indices_of_target_class = np.where(test_dataset.targets == CLASS_TO_SEARCH)[0]
+targets = test_dataset.data[indices_of_target_class][:N_REGRESSIONS]
 
 transform = transforms.Compose(
     [transforms.ToTensor(),
@@ -77,75 +116,36 @@ transform = transforms.Compose(
      transforms.Normalize((0.5,), (0.5,))]
 )
 
-prog_bar = tqdm(total=n_iterations * n_regressions)
-prog_bar.set_description(f'Total of {n_regressions} regressions with {n_iterations} iterations each')
 
-for target_idx in range(n_regressions):
-    latent_noise = torch.zeros(1, latent_dim, requires_grad=True, dtype=torch.float, device=device)
-    label = torch.zeros(1, 10, device=device)
-    label[0, class_to_search] = 1
-    target = targets[target_idx]
-    target = transform(target).squeeze()
-    target = target + torch.randn((img_size, img_size)) * 0.0
-    target = target.to(device)
 
-    optim = torch.optim.Adam(params=[latent_noise], lr=lr, weight_decay=weight_decay)
-    criterion = torch.nn.MSELoss(reduction='sum')
+# setup progress bar
+prog_bar = tqdm(total=N_ITERATIONS * N_REGRESSIONS)
+prog_bar.set_description(f'Total of {N_REGRESSIONS} regressions with {N_ITERATIONS} iterations each')
 
-    losses = []
-    magnitudes = []
+latent_noise_matrix = torch.zeros(N_REGRESSIONS, latent_dim, dtype=torch.float32, device=device)
+all_targets = torch.zeros(N_REGRESSIONS, 1, img_size, img_size, device=device)
 
-    for i in range(n_iterations):
-        optim.zero_grad()
+n_threads = 4
+assert N_REGRESSIONS % n_threads == 0
+threads = []
+n_reg_per_thread = N_REGRESSIONS // n_threads
 
-        approx = gen(latent_noise, label).squeeze()
-        loss = criterion(approx, target)
+for i in range(n_threads):
+    start = i * n_reg_per_thread
+    end = (i + 1) * n_reg_per_thread
+    t = Thread(target=multiple_regression, args=(targets[start:end], transform, start, checkpoint_path))
+    threads.append(t)
 
-        losses.append(loss.detach().cpu().numpy())
-        mag = torch.linalg.vector_norm(latent_noise)
-        magnitudes.append(mag.detach().cpu().numpy())
-
-        loss.backward()
-        optim.step()
-
-        if i > 0 and i % step_for_plot == 0:
-            fig, ax = plt.subplots(1, 2)
-            ax[0].imshow(target.detach().cpu().numpy(), cmap='gray')
-            ax[0].set_title('Target')
-            ax[1].imshow(approx.detach().cpu().numpy(), cmap='gray')
-            ax[1].set_title('Approximation')
-            plt.suptitle(f'Iteration {i} / {n_iterations}')
-            plt.tight_layout()
-            plt.show()
-
-        prog_bar.update(1)
-
-    latent_noise_matrix[target_idx] = latent_noise.detach()
-    all_targets[target_idx, 0] = target
-
-    if plot_individual_loss_and_mag is True:
-        fig, ax = plt.subplots(1, 2)
-        ax[0].imshow(target.detach().cpu().numpy(), cmap='gray')
-        ax[0].set_title('Target')
-        ax[1].imshow(approx.detach().cpu().numpy(), cmap='gray')
-        ax[1].set_title('Approximation')
-        plt.suptitle(f'Final approximation')
-        plt.show()
-
-        plt.plot(losses)
-        plt.title('Loss over iterations')
-        plt.show()
-
-        plt.plot(magnitudes)
-        plt.title('Magnitude of latent noise over iterations')
-        plt.show()
+for t in threads:
+    t.start()
+for t in threads:
+    t.join()
 
 prog_bar.close()
 
 # prepare labels for PSNR calculation
-all_labels = torch.zeros(n_regressions, 10)
-all_labels[:, class_to_search] = torch.ones(n_regressions)
-
+all_labels = torch.zeros(N_REGRESSIONS, 10)
+all_labels[:, CLASS_TO_SEARCH] = torch.ones(N_REGRESSIONS)
 
 all_predictions = gen(latent_noise_matrix.to(device), all_labels.to(device))
 snrs = peak_signal_noise_ratio(preds=all_predictions,
@@ -164,5 +164,7 @@ plt.show()
 idx_worst_snr = torch.argmin(snrs).item()
 idx_best_snr = torch.argmax(snrs).item()
 
-plot_comparison(all_targets[idx_worst_snr, 0], all_predictions[idx_worst_snr, 0], title=f'Worst approximation. SNR: {snrs[idx_worst_snr].item():.2f}')
-plot_comparison(all_targets[idx_best_snr, 0], all_predictions[idx_best_snr, 0], title=f'Best approximation. SNR: {snrs[idx_best_snr].item():.2f}')
+plot_comparison(all_targets[idx_worst_snr, 0], all_predictions[idx_worst_snr, 0],
+                title=f'Worst approximation. SNR: {snrs[idx_worst_snr].item():.2f}')
+plot_comparison(all_targets[idx_best_snr, 0], all_predictions[idx_best_snr, 0],
+                title=f'Best approximation. SNR: {snrs[idx_best_snr].item():.2f}')
