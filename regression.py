@@ -28,21 +28,21 @@ device = 'cpu'
 random.seed(2)
 
 # for conditional generators we need to specify which class we're looking at
-class_to_search = 0
+class_to_search = 2
 
 # Hyperparameters
 lr = 1e-2
 weight_decay = 1.0
 n_iterations = 100
 img_size = 28
-latent_dim = 100
+latent_dim = 64
 
 n_regressions = 100
 
 step_for_plot = n_iterations
 plot_individual_loss_and_mag = False
 
-gen, _ = load_gen_disc_from_checkpoint('trained_models/vanilla_small/2023-10-26 14:35:51/checkpoint_7000', device=device)
+gen, _ = load_gen_disc_from_checkpoint('trained_models/p4_rot_mnist/2023-10-31 14:16:50/checkpoint_6000', device=device)
 '''
 gen = Generator()
 gen.load_state_dict(
@@ -52,9 +52,11 @@ gen.load_state_dict(
 gen.eval()
 '''
 
+# empty matrix to store regression results in
 latent_noise_matrix = torch.zeros(n_regressions, latent_dim, dtype=torch.float)
 
-project_root = os.path.dirname(os.path.abspath(__file__))
+# load test dataset
+project_root = os.getcwd()
 test_dataset, _ = get_rotated_mnist_dataloader(root=project_root,
                                                batch_size=64,
                                                shuffle=True,
@@ -138,8 +140,9 @@ for target_idx in range(n_regressions):
         plt.title('Magnitude of latent noise over iterations')
         plt.show()
 
-#print(f'final latent vector: \n{latent_noise}')
 prog_bar.close()
+
+# prepare labels for PSNR calculation
 all_labels = torch.zeros(n_regressions, 10)
 all_labels[:, class_to_search] = torch.ones(n_regressions)
 
@@ -152,11 +155,6 @@ snrs = peak_signal_noise_ratio(preds=all_predictions,
                                data_range=(-1, 1))
 
 snrs_numpy = snrs.detach().cpu().numpy()
-
-plt.plot(np.arange(n_regressions, dtype=int), snrs_numpy, 'o')
-plt.xticks(np.arange(n_regressions, dtype=int))
-plt.title('Peak Signal-To-Noise_Ratios')
-plt.show()
 
 sns.histplot(snrs_numpy)
 plt.title(f'Histogram of PSNRs, total number of examples: {len(snrs_numpy)}')
