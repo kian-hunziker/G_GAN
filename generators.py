@@ -5,10 +5,12 @@ from torch.nn.utils import spectral_norm as SN
 from blocks import CCBN, GenBlockDCGAN
 from layers import GFiLM
 from utils import pooling, g_batch_norm
+
 try:
     from groupy.gconv.pytorch_gconv import P4ConvZ2, P4ConvP4
 except ImportError:
     from utils.groupy_dummie import P4ConvZ2, P4ConvP4
+
 
 class Generator(nn.Module):
     def __init__(self, n_classes: int = 10, gen_arch: str = 'z2_rot_mnist', latent_dim: int = 64):
@@ -249,18 +251,6 @@ class Generator(nn.Module):
         return out
 
 
-def init_generator_weights_z2(m, show_details=False):
-    if isinstance(m, nn.Conv2d):
-        nn.init.orthogonal_(m.weight)
-        if show_details is True:
-            print(f'initialized {m}')
-    elif isinstance(m, GFiLM):
-        nn.init.orthogonal_(m.beta_linear.weight)
-        nn.init.orthogonal_(m.gamma_linear.weight)
-        if show_details is True:
-            print(f'initialized film layer {m}')
-
-
 def initialize_weights(model: nn.Module, arch: str, show_details: bool = False):
     if arch == 'vanilla' or arch == 'vanilla_small' or arch == 'z2_rot_mnist_no_label':
         print(f'  ->  Initializing from normal distribution')
@@ -281,22 +271,3 @@ def initialize_weights(model: nn.Module, arch: str, show_details: bool = False):
                 nn.init.orthogonal_(m.gamma_linear.weight)
                 if show_details is True:
                     print(f'initialized film layer {m}')
-
-def generator_debug_test(gen_arch):
-    gen = Generator(gen_arch=gen_arch)
-    batch_size = 32
-    z_dim = 64
-    n_classes = 10
-    labels = torch.zeros((batch_size, n_classes))
-    noise = torch.randn((batch_size, z_dim))
-    out = gen(noise, labels)
-    print(out.shape)
-
-
-def generator_initialisation_test():
-    gen = Generator()
-    gen.apply(init_generator_weights_z2)
-    print('great success!')
-
-# generator_initialisation_test()
-# generator_debug_test('p4_rot_mnist')

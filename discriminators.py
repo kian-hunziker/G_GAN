@@ -90,10 +90,9 @@ class Discriminator(nn.Module):
                 nn.LeakyReLU(0.2),
                 DiscBlockDCGAN(features_d, features_d * 2, 4, 2, 1),
                 DiscBlockDCGAN(features_d * 2, features_d * 4, 4, 2, 1),
-                #DiscBlockDCGAN(features_d * 4, features_d * 8, 4, 2, 1),
+                # DiscBlockDCGAN(features_d * 4, features_d * 8, 4, 2, 1),
                 nn.Conv2d(features_d * 4, 1, kernel_size=4, stride=2, padding=1),
             )
-
 
     def forward(self, x: list[torch.Tensor, torch.Tensor]):
         """
@@ -138,51 +137,3 @@ class Discriminator(nn.Module):
             prediction = torch.add(projection, original_pred)
             # prediction: [batch_size,]
         return prediction
-
-
-def init_discriminator_weights_z2(m, show_details=False):
-    if isinstance(m, nn.Conv2d):
-        nn.init.orthogonal_(m.weight)
-        if show_details is True:
-            print(f'initialized {m}')
-
-
-def discriminator_initialisation_test():
-    disc = Discriminator((1, 28, 28), n_classes=10)
-    disc.apply(init_discriminator_weights_z2)
-    print('great success!')
-
-
-def discriminator_debug_test(disc_arch):
-    img_dim = (1, 28, 28)
-    batch_size = 32
-    z_dim = 64
-    n_classes = 10
-
-    # Generate random one-hot encoded vectors
-    one_hot_vectors = []
-    for _ in range(batch_size):
-        # Randomly select a class (0 to 9)
-        class_index = random.randint(0, n_classes - 1)
-
-        # Create a one-hot encoded vector for the selected class
-        one_hot_vector = torch.zeros(n_classes)
-        one_hot_vector[class_index] = 1.0
-
-        one_hot_vectors.append(one_hot_vector)
-
-    # Convert the list of one-hot vectors to a PyTorch tensor
-    labels = torch.stack(one_hot_vectors)
-    images = torch.randn(tuple([batch_size]) + img_dim)
-
-    assert (tuple(images.shape) == (batch_size, 1, 28, 28))
-
-    disc = Discriminator(img_shape=img_dim,
-                         disc_arch=disc_arch,
-                         n_classes=n_classes)
-
-    out = disc([images, labels])
-    print(out.shape)
-
-# discriminator_initialisation_test()
-# discriminator_debug_test('p4_rot_mnist')

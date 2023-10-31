@@ -10,8 +10,8 @@ import datetime
 from time import time
 from tqdm import tqdm
 
-from generators import Generator, init_generator_weights_z2, initialize_weights
-from discriminators import Discriminator, init_discriminator_weights_z2
+from generators import Generator, initialize_weights
+from discriminators import Discriminator
 from utils.dataLoaders import get_rotated_mnist_dataloader, get_standard_mnist_dataloader
 from utils.optimizers import get_optimizers
 from utils.gradient_penalty import zero_centered_gp_real_data, vanilla_gp
