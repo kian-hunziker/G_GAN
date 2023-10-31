@@ -12,8 +12,8 @@ from tqdm import tqdm
 import numpy as np
 import matplotlib.pyplot as plt
 
-from generators import Generator, init_generator_weights_z2
-from discriminators import Discriminator, init_discriminator_weights_z2
+from generators import Generator
+from discriminators import Discriminator
 from utils.checkpoints import load_gen_disc_from_checkpoint
 from utils.dataLoaders import get_rotated_mnist_dataloader
 from utils.optimizers import get_optimizers
@@ -96,9 +96,9 @@ for _ in range(10):
 '''
 # plot_examples_for_all_classes()
 p4_path = 'trained_models/p4_rot_mnist/2023-10-17 22:02:15/checkpoint_10000'
-z2_path = 'trained_models/z2_rot_mnist/2023-10-19 15:42:33/checkpoint_20000'
+z2_path = 'trained_models/z2_rot_mnist/2023-10-31 12:34:55/checkpoint_20000'
 gen, disc = load_gen_disc_from_checkpoint(checkpoint_path=z2_path, device=device)
-#plot_examples_for_all_classes()
+plot_examples_for_all_classes()
 #plot_32_random_examples()
 for i in range(15):
     inc_size = 0.5 #0.5 * (1 + i)
