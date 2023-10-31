@@ -11,7 +11,7 @@ import random
 from tqdm import tqdm
 
 from utils.dataLoaders import get_rotated_mnist_dataloader
-from utils.checkpoints import load_checkpoint
+from utils.checkpoints import load_gen_disc_from_checkpoint
 
 
 def plot_comparison(target: torch.Tensor, approx: torch.Tensor, title: str):
@@ -42,7 +42,7 @@ n_regressions = 100
 step_for_plot = n_iterations
 plot_individual_loss_and_mag = False
 
-gen, _ = load_checkpoint('trained_models/vanilla_small/2023-10-26 14:35:51/checkpoint_7000', device=device)
+gen, _ = load_gen_disc_from_checkpoint('trained_models/vanilla_small/2023-10-26 14:35:51/checkpoint_7000', device=device)
 '''
 gen = Generator()
 gen.load_state_dict(

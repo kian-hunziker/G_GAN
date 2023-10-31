@@ -10,6 +10,7 @@ import datetime
 from time import time
 from tqdm import tqdm
 
+import utils.parameters
 from generators import Generator, initialize_weights
 from discriminators import Discriminator
 from utils.dataLoaders import get_rotated_mnist_dataloader, get_standard_mnist_dataloader
@@ -34,35 +35,39 @@ print(f'Using device: {device}')
 print(f'Project root: {project_root}\n')
 
 # Hyperparameters
-USE_GGAN_TRAINING_LOOP = False
-
 N_ITER_FOR_CHECKPOINT = 1000
 N_STEPS_FOR_SUMMARY = 10
 
 # GEN_ARCH: one of {'z2_rot_mnist_no_label', 'z2_rot_mnist', 'p4_rot_mnist', 'vanilla', 'vanilla_small'}
-GEN_ARCH = 'vanilla_small'
+GEN_ARCH = 'z2_rot_mnist'
 # DISC_ARCH: one of {'z2_rot_mnist_no_label', 'z2_rot_mnist', 'p4_rot_mnist', 'vanilla', 'vanilla_small'}
-DISC_ARCH = 'vanilla_small'
+DISC_ARCH = 'z2_rot_mnist'
 
-DISC_UPDATE_STEPS = 5
+hyper_params = utils.parameters.get_parameters_dict(gen_arch=GEN_ARCH, disc_arch=DISC_ARCH)
+print(f'HYPERPARAMETERS:')
+utils.parameters.print_parameters(hyper_params)
+
+USE_GGAN_TRAINING_LOOP = hyper_params['use_ggan_training_loop']
+
+DISC_UPDATE_STEPS = hyper_params['disc_update_steps']
 # LOSS_TYPE: one of {'wasserstein', 'rel_avg'}
-LOSS_TYPE = 'wasserstein'
+LOSS_TYPE = hyper_params['loss_type']
 # GP_TYPE: one of {'vanilla', 'zero_centered'}
-GP_TYPE = 'vanilla'
-GP_STRENGTH = 0.1  # 10 or 0.1
+GP_TYPE = hyper_params['gp_type']
+GP_STRENGTH = hyper_params['gp_strength']  # 10 or 0.1
 
 EPOCHS = 300
-BATCH_SIZE = 64
-NUM_CLASSES = 10
-LATENT_DIM = 64
+BATCH_SIZE = hyper_params['batch_size']
+NUM_CLASSES = hyper_params['n_classes']
+LATENT_DIM = hyper_params['latent_dim']
 EPS = 1e-6
 
-IMG_SHAPE = (1, 28, 28)
+IMG_SHAPE = hyper_params['img_shape']
 
-BETA_1 = 0.0
-BETA_2 = 0.9
-LR_G = 0.0001
-LR_D = 0.0001  # 0.0004
+BETA_1 = hyper_params['beta_1']
+BETA_2 = hyper_params['beta_2']
+LR_G = hyper_params['lr_g']
+LR_D = hyper_params['lr_d']
 
 # fix random seeds
 RANDOM_SEED = 42
@@ -150,7 +155,7 @@ fixed_labels = l.to(device)
 # fixed_labels = fixed_labels.to(device)
 if 'no_label' in GEN_ARCH:
     fixed_labels = None
-print(f'\nThe fixed labels are: \n {fixed_labels.nonzero(as_tuple=True)[1].view(4, 10).cpu().numpy()}')
+print(f'\nThe fixed labels are: \n {fixed_labels.nonzero(as_tuple=True)[1].view(4, 10).cpu().numpy()}\n')
 
 # setup for checkpointing and saving trained models
 trained_models_path = f'trained_models/{GEN_ARCH}'
@@ -165,7 +170,7 @@ if not os.path.isdir(trained_models_path):
 
 def save_checkpoint(n_iterations):
     checkpoint_path = f'{trained_models_path}/checkpoint_{n_iterations}'
-    torch.save({
+    checkpoint = {
         'iterations': n_iterations,
         'gen_arch': GEN_ARCH,
         'disc_arch': DISC_ARCH,
@@ -173,7 +178,9 @@ def save_checkpoint(n_iterations):
         'discriminator': disc.state_dict(),
         'gen_optim': gen_optim.state_dict(),
         'disc_optim': disc_optim.state_dict(),
-    }, checkpoint_path)
+    }
+    checkpoint.update(hyper_params)
+    torch.save(checkpoint, checkpoint_path)
 
 
 # ---------------------------------------------------------------------------------------------------------
@@ -377,7 +384,8 @@ print(f'Saving Generator and Discriminator as {IDENTIFIER_FOR_SAVING}')
 print('-' * 32 + '\n')
 
 # save models
-gen_path = f'{trained_models_path}/generator_{IDENTIFIER_FOR_SAVING}'
-disc_path = f'{trained_models_path}/discriminator_{IDENTIFIER_FOR_SAVING}'
-torch.save(gen.state_dict(), gen_path)
-torch.save(disc.state_dict(), disc_path)
+save_checkpoint(EPOCHS * steps_per_epoch)
+#gen_path = f'{trained_models_path}/generator_{IDENTIFIER_FOR_SAVING}'
+#disc_path = f'{trained_models_path}/discriminator_{IDENTIFIER_FOR_SAVING}'
+#torch.save(gen.state_dict(), gen_path)
+#torch.save(disc.state_dict(), disc_path)
