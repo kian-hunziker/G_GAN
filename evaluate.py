@@ -14,7 +14,7 @@ import matplotlib.pyplot as plt
 
 from generators import Generator
 from discriminators import Discriminator
-from utils.checkpoints import load_gen_disc_from_checkpoint
+from utils.checkpoints import load_gen_disc_from_checkpoint, load_checkpoint, print_checkpoint
 from utils.dataLoaders import get_rotated_mnist_dataloader
 from utils.optimizers import get_optimizers
 
@@ -76,7 +76,6 @@ def plot_slight_variations(digit, inc_size, start_from_zero=True):
     noise_inc = F.normalize(torch.randn(1, 64), dim=1) * inc_size
     for i in range(num_images):
         noise[i] = noise_start + i * noise_inc
-    print(noise.shape)
     noise = noise.to(device)
     label = label.to(device)
     images = gen(noise, label)
@@ -95,12 +94,13 @@ for _ in range(10):
     plot_slight_variations(digit=3, inc_size=0.6, start_from_zero=True)
 '''
 # plot_examples_for_all_classes()
-p4_path = 'trained_models/p4_rot_mnist/2023-10-17 22:02:15/checkpoint_10000'
+p4_path = 'trained_models/p4_rot_mnist/2023-10-31 14:16:50/checkpoint_6000'
 z2_path = 'trained_models/z2_rot_mnist/2023-10-31 12:34:55/checkpoint_20000'
-gen, disc = load_gen_disc_from_checkpoint(checkpoint_path=z2_path, device=device)
+gen, disc = load_gen_disc_from_checkpoint(checkpoint_path=p4_path, device=device)
+print_checkpoint(load_checkpoint(p4_path, 'cpu'))
+
 plot_examples_for_all_classes()
 #plot_32_random_examples()
-for i in range(15):
+for i in range(4):
     inc_size = 0.5 #0.5 * (1 + i)
     plot_slight_variations(8, inc_size=inc_size, start_from_zero=False)
-print('loaded')
