@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from torch.nn.utils import spectral_norm as SN
-from blocks import CCBN, GenBlockDCGAN
+from blocks import CCBN, GenBlockDCGAN, ResBlockGen
 from layers import GFiLM
 from utils import pooling, g_batch_norm
 
@@ -172,6 +172,49 @@ class Generator(nn.Module):
                 ),
                 nn.Tanh()  # [-1, 1]
             )
+        elif self.gen_arch == 'z2_rot_mnist_resblock':
+            self.block1 = ResBlockGen(in_features=128,
+                                      out_features=512,
+                                      input_img_size=7,
+                                      projection_dim=self.proj_dim,
+                                      h_input='Z2',
+                                      h_output='Z2',
+                                      pad='same',
+                                      stride=1,
+                                      group_equiv=False,
+                                      kernel_size=3,
+                                      upsample=True
+                                      )
+            self.block2 = ResBlockGen(in_features=512,
+                                      out_features=256,
+                                      input_img_size=14,
+                                      projection_dim=self.proj_dim,
+                                      h_input='Z2',
+                                      h_output='Z2',
+                                      pad='same',
+                                      stride=1,
+                                      group_equiv=False,
+                                      kernel_size=3,
+                                      upsample=True
+                                      )
+            self.block3 = ResBlockGen(in_features=256,
+                                      out_features=128,
+                                      input_img_size=28,
+                                      projection_dim=self.proj_dim,
+                                      h_input='Z2',
+                                      h_output='Z2',
+                                      pad='same',
+                                      stride=1,
+                                      group_equiv=False,
+                                      kernel_size=3,
+                                      upsample=False
+                                      )
+            self.final_conv = SN(nn.Conv2d(in_channels=128,
+                                           out_channels=1,
+                                           kernel_size=3,
+                                           stride=1,
+                                           padding='same',
+                                           bias=False))
 
     def forward(self, latent_noise: torch.Tensor, label: torch.Tensor = None) -> torch.Tensor:
         """
@@ -246,6 +289,17 @@ class Generator(nn.Module):
             fea = pooling.group_max_pool(fea, group='C4')
         elif self.gen_arch == 'vanilla' or self.gen_arch == 'vanilla_small':
             return self.gen(latent_noise.unsqueeze(-1).unsqueeze(-1))
+        elif self.gen_arch == 'z2_rot_mnist_resblock':
+            label_projection = self.label_projection_layer(label)
+            cla = torch.cat((latent_noise, label_projection), dim=1)
+            cla = self.projected_noise_and_classes(cla)
+            # TODO make reshape nicer
+            gen = cla.reshape(tuple([-1]) + self.proj_shape)
+
+            fea = self.block1(gen, cla)
+            fea = self.block2(fea, cla)
+            fea = self.block3(fea, cla)
+            fea = self.final_conv(fea)
 
         out = F.tanh(fea)
         return out

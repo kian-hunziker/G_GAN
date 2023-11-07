@@ -54,6 +54,15 @@ class TestGenerators(unittest.TestCase):
         self.assertEqual(out.shape[2], self.img_size)
         self.assertEqual(out.shape[2], self.img_size)
 
+    def test_z2_rot_mnist_resblock_setup(self):
+        gen_arch = 'z2_rot_mnist_resblock'
+        gen = self.get_generator(gen_arch)
+        out = gen(self.noise, self.labels)
+        self.assertEqual(out.shape[0], self.batch_size)
+        self.assertEqual(out.shape[1], self.n_channels)
+        self.assertEqual(out.shape[2], self.img_size)
+        self.assertEqual(out.shape[2], self.img_size)
+
     def test_weight_initialization(self):
         for arch in self.gen_archs:
             gen = self.get_generator(arch)

@@ -13,6 +13,15 @@ def get_parameters_dict(gen_arch: str, disc_arch: str) -> dict:
         beta_2 = 0.9
         lr_g = 0.0001
         img_shape = (1, 28, 28)
+    elif gen_arch == 'z2_rot_mnist_resblock':
+        n_classes = 10
+        latent_dim = 64
+        use_ggan_training_loop = True
+        loss_type = 'rel_avg'
+        beta_1 = 0.0
+        beta_2 = 0.9
+        lr_g = 0.0001
+        img_shape = (1, 28, 28)
     elif gen_arch == 'p4_rot_mnist':
         n_classes = 10
         latent_dim = 64

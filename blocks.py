@@ -148,3 +148,73 @@ class DiscBlockDCGAN(nn.Module):
 
     def forward(self, x):
         return self.block(x)
+
+
+class ResBlockGen(nn.Module):
+    def __init__(self, in_features, out_features, input_img_size, projection_dim, h_input='z2', h_output='z2',
+                 pad=0, stride=1, group_equiv=False, kernel_size=3, bn_eps=1e-3, upsample=True):
+
+        super(ResBlockGen, self).__init__()
+        feature_map_shape_input = [in_features, input_img_size, input_img_size]
+        self.upsample = upsample
+        if upsample is True:
+            feature_map_shape_2 = [out_features, 2 * input_img_size, 2 * input_img_size]
+        else:
+            feature_map_shape_2 = [out_features, input_img_size, input_img_size]
+
+        self.BN1 = nn.BatchNorm2d(num_features=in_features,
+                                  momentum=0.1,
+                                  affine=False)
+        self.CCBN1 = CCBN(feature_map_shape=feature_map_shape_input,
+                          proj_dim=projection_dim,
+                          group='Z2')
+        self.conv1 = SN(nn.Conv2d(in_channels=in_features,
+                                  out_channels=out_features,
+                                  kernel_size=kernel_size,
+                                  stride=stride,
+                                  padding=pad,
+                                  bias=False))
+        self.BN2 = nn.BatchNorm2d(num_features=out_features,
+                                  momentum=0.1,
+                                  affine=False)
+        self.CCBN2 = CCBN(feature_map_shape=feature_map_shape_2,
+                          proj_dim=projection_dim,
+                          group='Z2')
+        self.conv2 = SN(nn.Conv2d(in_channels=out_features,
+                                  out_channels=out_features,
+                                  kernel_size=kernel_size,
+                                  stride=stride,
+                                  padding=pad,
+                                  bias=False))
+
+        self.shortcut_conv = SN(nn.Conv2d(in_channels=in_features,
+                                          out_channels=out_features,
+                                          kernel_size=1,
+                                          stride=stride,
+                                          padding=pad,
+                                          bias=False))
+
+    def forward(self, x, cla):
+        if self.upsample is True:
+            shortcut = F.interpolate(x, scale_factor=2)
+            shortcut = self.shortcut_conv(shortcut)
+        else:
+            shortcut = self.shortcut_conv(x)
+
+        x_conv = self.BN1(x)
+        x_conv = self.CCBN1([x_conv, cla])
+        x_conv = F.relu(x_conv)
+        if self.upsample is True:
+            x_conv = F.interpolate(x_conv, scale_factor=2)
+        x_conv = self.conv1(x_conv)
+        x_conv = self.BN2(x_conv)
+        x_conv = self.CCBN2([x_conv, cla])
+        x_conv = F.relu(x_conv)
+        x_conv = self.conv2(x_conv)
+
+        out = x_conv + shortcut
+        return out
+
+
+
+
