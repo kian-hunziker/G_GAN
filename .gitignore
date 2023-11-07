@@ -14,6 +14,8 @@ trained_models/vanilla/*
 trained_models/vanilla_small/*
 trained_models/z2_rot_mnist_resblock/*
 
+regressions/*
+
 # General
 .DS_Store
 .AppleDouble
