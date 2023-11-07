@@ -15,6 +15,7 @@ trained_models/vanilla_small/*
 trained_models/z2_rot_mnist_resblock/*
 
 regressions/*
+GrouPy
 
 # General
 .DS_Store
