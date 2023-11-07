@@ -94,7 +94,7 @@ for _ in range(10):
     plot_slight_variations(digit=3, inc_size=0.6, start_from_zero=True)
 '''
 # plot_examples_for_all_classes()
-p4_path = 'trained_models/p4_rot_mnist/2023-10-31 14:16:50/checkpoint_6000'
+p4_path = 'trained_models/p4_rot_mnist/2023-10-31_14:16:50/checkpoint_6000'
 z2_path = 'trained_models/z2_rot_mnist/2023-10-31 12:34:55/checkpoint_20000'
 gen, disc = load_gen_disc_from_checkpoint(checkpoint_path=p4_path, device=device)
 print_checkpoint(load_checkpoint(p4_path, 'cpu'))

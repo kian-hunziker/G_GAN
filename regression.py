@@ -276,7 +276,7 @@ N_ITERATIONS = 10
 
 step_for_plot = 30
 
-CHECKPOINT_PATH = 'trained_models/p4_rot_mnist/2023-10-31 14:16:50/checkpoint_20000'
+CHECKPOINT_PATH = 'trained_models/p4_rot_mnist/2023-10-31_14:16:50/checkpoint_20000'
 gen, _ = load_gen_disc_from_checkpoint(checkpoint_path=CHECKPOINT_PATH, device=device)
 print_checkpoint(load_checkpoint(path=CHECKPOINT_PATH, device=device))
 
