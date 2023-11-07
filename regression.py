@@ -1,3 +1,4 @@
+import datetime
 import os
 
 import torch
@@ -16,6 +17,7 @@ from utils.checkpoints import load_gen_disc_from_checkpoint, load_checkpoint, pr
 from threading import Thread
 
 torch.manual_seed(42)
+
 
 def get_targets_and_labels(n_targets: int, target_class: int = None) -> tuple[np.ndarray, np.ndarray]:
     """
@@ -59,7 +61,7 @@ def single_regression(generator: generators.Generator,
                       class_to_search: int,
                       lr: float = 1e-2,
                       weight_decay: float = 1.0,
-                      plot: bool = False) -> tuple [torch.Tensor, torch.Tensor]:
+                      plot: bool = False) -> tuple[torch.Tensor, torch.Tensor]:
     # noise = torch.randn(1, LATENT_DIM, requires_grad=True, dtype=torch.float32, device=device)
 
     label = torch.zeros(1, 10, device=device)
@@ -209,8 +211,7 @@ def threaded_regression(n_threads, n_regressions, n_iterations, checkpoint_path,
 
 
 def plot_PSNRs(generator: generators.Generator, noise, c_labels, ground_truth):
-    one_hot_labels = torch.zeros(noise.shape[0], 10)
-    one_hot_labels[:, c_labels] = 1
+    one_hot_labels = torch.nn.functional.one_hot(torch.from_numpy(c_labels), 10).type(torch.float32)
 
     all_predictions = generator(noise.to(device), one_hot_labels.to(device))
     snrs = peak_signal_noise_ratio(preds=all_predictions,
@@ -238,10 +239,31 @@ def plot_PSNRs(generator: generators.Generator, noise, c_labels, ground_truth):
     print(f'index of best approx: {idx_best_snr}')
 
 
+def save_regression_results(latent_noise, path_to_model, class_to_search, lr, weight_decay, img_size, latent_dim,
+                            n_regressions, n_iterations, trans, description='-'):
+    current_date = datetime.datetime.now().strftime("%Y-%m-%d_%H:%M:%S")
+    save_path = f'regressions/{current_date}'
+    d = {
+        'latent_noise': latent_noise,
+        'path_to_model': path_to_model,
+        'class_to_search': class_to_search,
+        'lr': lr,
+        'weight_decay': weight_decay,
+        'img_size': img_size,
+        'latent_dim': latent_dim,
+        'n_regressions': n_regressions,
+        'n_iterations': n_iterations,
+        'transform': trans,
+        'description': description
+    }
+    torch.save(d, save_path)
+    print(f'saved regression results as {save_path}')
+
+
 device = 'cpu'
 
 # for conditional generators we need to specify which class we're looking at
-CLASS_TO_SEARCH = 8
+CLASS_TO_SEARCH = None
 
 # Hyperparameters
 LR = 1e-2
@@ -249,8 +271,8 @@ WEIGHT_DECAY = 1.0
 IMG_SIZE = 28
 LATENT_DIM = 64
 
-N_REGRESSIONS = 15
-N_ITERATIONS = 1000
+N_REGRESSIONS = 5
+N_ITERATIONS = 10
 
 step_for_plot = 30
 
@@ -282,4 +304,15 @@ multiple_regressions(targets_numpy=target_images, c_labels=labels, n_iterations=
 # threaded_regression(n_threads=10, n_regressions=N_REGRESSIONS, n_iterations=N_ITERATIONS, checkpoint_path=CHECKPOINT_PATH, targets=target_images, c_labels=labels, lr=LR, weight_decay=WEIGHT_DECAY)
 
 plot_PSNRs(gen, LATENT_NOISE_RESULTS, labels, ALL_TARGETS)
+save_regression_results(latent_noise=LATENT_NOISE_RESULTS,
+                        path_to_model=CHECKPOINT_PATH,
+                        class_to_search=CLASS_TO_SEARCH,
+                        lr=LR,
+                        weight_decay=WEIGHT_DECAY,
+                        img_size=IMG_SIZE,
+                        latent_dim=LATENT_DIM,
+                        n_regressions=N_REGRESSIONS,
+                        n_iterations=N_ITERATIONS,
+                        trans=transform,
+                        description='-')
 prog_bar.close()

@@ -8,6 +8,7 @@ def load_gen_disc_from_checkpoint(checkpoint_path, device='cpu', print_to_consol
     """
     :param checkpoint_path: complete path of saved checkpoint
     :param device: device to load the networks to
+    :param print_to_console: If True, the information fields of the checkpoint will be printed to the console
     :return: Generator, Discriminator, in eval() mode, loaded to device
     """
     checkpoint = torch.load(checkpoint_path, map_location=device)
