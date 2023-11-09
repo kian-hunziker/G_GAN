@@ -6,6 +6,7 @@ import torch
 
 import generators
 import discriminators
+import utils.dataLoaders
 
 
 class TestGenerators(unittest.TestCase):
@@ -112,6 +113,29 @@ class TestDiscriminator(unittest.TestCase):
             disc = self.get_discriminator(arch)
             print(f'init {arch} discriminator weights')
             generators.initialize_weights(disc, arch)
+
+
+class TestDataset(unittest.TestCase):
+    def test_rot_mnist_dataset_single_digit(self):
+        data_path = '../datasets/RotMNIST/data_60000ex_0rot_180deg.npy'
+        label_path = '../datasets/RotMNIST/labels_60000ex_0rot_180deg.npy'
+        sum_images = 0
+        sum_labels = 0
+        for i in range(10):
+            dataset = utils.dataLoaders.RotMnistDataset(data_path, label_path, single_class=i)
+            sum_images = sum_images + len(dataset.data)
+            sum_labels += len(dataset.targets)
+            print(f'no examples for class {i}: {len(dataset.data)}')
+        print(f'total number of examples: {sum_images}')
+        self.assertEqual(sum_images, 60000)
+        self.assertEqual(sum_labels, 60000)
+
+    def test_rot_mnist_dataset_all_classes(self):
+        data_path = '../datasets/RotMNIST/data_60000ex_0rot_180deg.npy'
+        label_path = '../datasets/RotMNIST/labels_60000ex_0rot_180deg.npy'
+        dataset = utils.dataLoaders.RotMnistDataset(data_path, label_path)
+        self.assertEqual(len(dataset.data), 60000)
+        self.assertEqual(len(dataset.targets), 60000)
 
 
 if __name__ == '__main__':
