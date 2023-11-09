@@ -10,11 +10,20 @@ import utils.rotateMNIST
 
 
 class RotMnistDataset(torch.utils.data.Dataset):
-    def __init__(self, data_path, label_path, transform=transforms.ToTensor(), one_hot_encode=False, no_labels=False):
+    def __init__(self, data_path, label_path, transform=transforms.ToTensor(), one_hot_encode=False, no_labels=False, single_class=None):
         self.data_path = data_path
         self.label_path = label_path
-        self.data = np.load(self.data_path)
-        self.targets = np.load(self.label_path)
+        if single_class is None:
+            self.data = np.load(self.data_path)
+            self.targets = np.load(self.label_path)
+        else:
+            assert isinstance(single_class, int)
+            data = np.load(self.data_path)
+            targets = np.load(self.label_path)
+            indices = np.where(targets == single_class)
+            self.data = data[indices]
+            self.targets = targets[indices]
+
         self.transform = transform
         self.one_hot_encode = one_hot_encode
         self.n_classes = 10
@@ -69,7 +78,8 @@ def get_rotated_mnist_dataloader(root,
                                  one_hot_encode=False,
                                  no_labels=False,
                                  img_size=28,
-                                 train=True) -> (RotMnistDataset, torch.utils.data.DataLoader):
+                                 train=True,
+                                 single_class=None) -> (RotMnistDataset, torch.utils.data.DataLoader):
     # TODO: do we normalize the MNIST dataset?
     transform = transforms.Compose(
         [transforms.ToTensor(), transforms.Resize(img_size), transforms.Normalize((mean,), (std,))]
@@ -100,7 +110,8 @@ def get_rotated_mnist_dataloader(root,
                               label_path=label_path,
                               transform=transform,
                               one_hot_encode=one_hot_encode,
-                              no_labels=no_labels)
+                              no_labels=no_labels,
+                              single_class=single_class)
     data_loader = torch.utils.data.DataLoader(dataset, batch_size=batch_size, shuffle=shuffle)
 
     return dataset, data_loader
