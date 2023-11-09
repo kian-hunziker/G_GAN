@@ -14,10 +14,7 @@ def load_gen_disc_from_checkpoint(checkpoint_path, device='cpu', print_to_consol
     checkpoint = torch.load(checkpoint_path, map_location=device)
     gen_arch = checkpoint['gen_arch']
     disc_arch = checkpoint['disc_arch']
-    if gen_arch == 'vanilla':
-        latent_dim = 100
-    else:
-        latent_dim = 64
+    latent_dim = checkpoint['latent_dim']
     gen = Generator(gen_arch=gen_arch, latent_dim=latent_dim)
     disc = Discriminator([1, 28, 28], disc_arch=disc_arch)
     gen.load_state_dict(checkpoint['generator'])
