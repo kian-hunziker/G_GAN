@@ -39,11 +39,14 @@ N_ITER_FOR_CHECKPOINT = 1000
 N_STEPS_FOR_SUMMARY = 10
 
 # GEN_ARCH: one of {'z2_rot_mnist_no_label', 'z2_rot_mnist', 'p4_rot_mnist', 'vanilla', 'vanilla_small'}
-GEN_ARCH = 'z2_rot_mnist'
+GEN_ARCH = 'p4_rot_mnist'
 # DISC_ARCH: one of {'z2_rot_mnist_no_label', 'z2_rot_mnist', 'p4_rot_mnist', 'vanilla', 'vanilla_small'}
-DISC_ARCH = 'z2_rot_mnist'
+DISC_ARCH = 'p4_rot_mnist'
 
 hyper_params = utils.parameters.get_parameters_dict(gen_arch=GEN_ARCH, disc_arch=DISC_ARCH)
+# TODO REMOVE THIS AGAIN
+hyper_params['latent_dim'] = 2
+
 print(f'HYPERPARAMETERS:')
 utils.parameters.print_parameters(hyper_params)
 
@@ -86,7 +89,8 @@ dataset, data_loader = get_rotated_mnist_dataloader(root=project_root,
                                                     num_examples=60000,
                                                     num_rotations=0,
                                                     no_labels='no_label' in GEN_ARCH and 'no_label' in DISC_ARCH,
-                                                    img_size=28)
+                                                    img_size=28,
+                                                    single_class=None)
 '''
 dataset, data_loader = get_standard_mnist_dataloader(root=project_root,
                                                      img_size=28)
@@ -127,7 +131,7 @@ gen_optim, disc_optim = get_optimizers(lr_g=LR_G,
 # ---------------------------------------------------------------------------------------------------------
 # Setup for summary writer and checkpointing
 # ---------------------------------------------------------------------------------------------------------
-current_date = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+current_date = datetime.datetime.now().strftime("%Y-%m-%d_%H:%M:%S")
 log_dir = f'runs/{GEN_ARCH}/{current_date}'
 summ_writer = SummaryWriter(log_dir)
 
