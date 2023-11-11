@@ -55,7 +55,7 @@ arg_parser.add_argument('-n_iter', default=300, type=int)
 arg_parser.add_argument('-n_start_pos', default=128, type=int)
 args = arg_parser.parse_args()
 
-device = 'mps' #torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 # fix random seed
 torch.manual_seed(42)
