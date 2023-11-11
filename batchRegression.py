@@ -136,7 +136,7 @@ for batch_idx in range(N_BATCHES):
             end_idx = (i + 1) * N_START_POS
 
             # compute approximations for current example
-            start_approx = gen(pot_start_vecs[start_idx:end_idx], input_labels[i].unsqueeze(0).repeat_interleave(16, dim=0))
+            start_approx = gen(pot_start_vecs[start_idx:end_idx], input_labels[i].unsqueeze(0).repeat_interleave(N_START_POS, dim=0))
 
             # compute loss
             start_losses = torch.nn.functional.mse_loss(
