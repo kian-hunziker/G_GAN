@@ -25,7 +25,7 @@ def plot_comparison(tar: torch.Tensor, approx: torch.Tensor, title: str):
 
 
 def save_regression_results(path_to_model, latent_noise, snrs, loss_per_batch, class_to_search, lr, weight_decay,
-                            img_size, latent_dim, n_regressions, n_iterations, gen_arch, description='-'):
+                            img_size, latent_dim, n_regressions, n_iterations, n_start_pos, gen_arch, description='-'):
     current_date = datetime.datetime.now().strftime("%Y-%m-%d_%H:%M:%S")
     save_path = f'regressions/{current_date}_{gen_arch}'
     d = {
@@ -40,6 +40,7 @@ def save_regression_results(path_to_model, latent_noise, snrs, loss_per_batch, c
         'latent_dim': latent_dim,
         'n_regressions': n_regressions,
         'n_iterations': n_iterations,
+        'n_start_pos': n_start_pos,
         'description': description
     }
     torch.save(d, save_path)
@@ -51,25 +52,33 @@ arg_parser.add_argument('-path', type=str)
 arg_parser.add_argument('-batch_size', default=64, type=int)
 arg_parser.add_argument('-n_batches', default=None, type=int)
 arg_parser.add_argument('-n_iter', default=300, type=int)
+arg_parser.add_argument('-n_start_pos', default=128, type=int)
 args = arg_parser.parse_args()
 
-device = 'cpu'
+device = 'mps' #torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+
+# fix random seed
+torch.manual_seed(42)
+
 LR = 1e-2
 WEIGHT_DECAY = 1.0
 IMG_SIZE = 28
 
 N_ITERATIONS = args.n_iter
 BATCH_SIZE = args.batch_size
+N_START_POS = args.n_start_pos
 if args.n_batches is None:
     N_BATCHES = int(np.ceil(10000 / BATCH_SIZE))
 else:
     N_BATCHES = args.n_batches
 
+# initialise lists to save batch results
 all_latent_noise_list = []
 final_losses = []
 snrs_list = []
 
-checkpoint_path = args.path #'trained_models/p4_rot_mnist/2023-10-31_14:16:50/checkpoint_20000'
+# load generator from specified checkpoint
+checkpoint_path = args.path
 gen, _ = load_gen_disc_from_checkpoint(checkpoint_path, device=device, print_to_console=True)
 checkpoint = load_checkpoint(checkpoint_path)
 print_checkpoint(checkpoint)
@@ -90,13 +99,14 @@ print('\n' + '-' * 32)
 print(f'STARTING REGRESSION')
 print(f'number of batches: {N_BATCHES}')
 print(f'number of iterations per regression: {N_ITERATIONS}')
+print(f'number of start positions: {N_START_POS}')
 print(f'learning rate: {LR}')
 print(f'weight decay: {WEIGHT_DECAY}')
 print(f'latent dimension: {LATENT_DIM}')
 print(f'device: {device}')
 print('-' * 32 + '\n')
 
-
+# setup progress bar and convert loader to iterable
 progbar = tqdm(total=N_BATCHES * N_ITERATIONS)
 loader_iter = iter(loader)
 
@@ -110,7 +120,27 @@ for batch_idx in range(N_BATCHES):
     curr_batch_size = target_images.shape[0]
 
     # initialise latent noise
-    input_noise = torch.zeros(curr_batch_size, LATENT_DIM, dtype=torch.float32, requires_grad=True, device=device)
+    # create potential start positions
+    # first position is zero vector, the remaining N_START_POS - 1 are random inputs
+    zero_start = torch.zeros(curr_batch_size, LATENT_DIM, dtype=torch.float32, device=device)
+    random_starts = torch.randn((N_START_POS - 1) * curr_batch_size, LATENT_DIM, dtype=torch.float32, device=device)
+    pot_start_vecs = torch.cat((zero_start, random_starts))
+
+    # pass potential start vectors through generator and compute initial losses
+    start_approx = gen(pot_start_vecs, input_labels.repeat_interleave(N_START_POS, dim=0))
+    start_losses = torch.nn.functional.mse_loss(
+        start_approx.squeeze(), target_images.squeeze().repeat_interleave(N_START_POS, dim=0), reduction='none'
+    )
+    start_losses = torch.mean(start_losses, dim=(1, 2))
+
+    # chose start vector with minimal MSE for each example
+    start_vecs = []
+    for i in range(curr_batch_size):
+        idx = torch.argmin(start_losses[i * N_START_POS: (i + 1) * N_START_POS]).item()
+        start_vecs.append(pot_start_vecs[i * N_START_POS + idx])
+
+    input_noise = torch.stack(start_vecs)
+    input_noise.requires_grad = True
 
     # initialise loss function and optimizer
     criterion = torch.nn.MSELoss(reduction='sum')
@@ -158,10 +188,12 @@ save_regression_results(path_to_model=checkpoint_path,
                         latent_dim=LATENT_DIM,
                         n_regressions=latent_noise_results.shape[0],
                         n_iterations=N_ITERATIONS,
+                        n_start_pos=N_START_POS,
                         gen_arch=checkpoint['gen_arch'],
                         description='-')
 
-
+print('\nDONE \n')
+'''
 _, new_loader = get_rotated_mnist_dataloader(root=project_root,
                                              batch_size=N_BATCHES * BATCH_SIZE,
                                              shuffle=False,
@@ -170,8 +202,7 @@ _, new_loader = get_rotated_mnist_dataloader(root=project_root,
                                              num_rotations=0,
                                              train=False)
 
-print('\nDONE \n')
-'''
+
 all_targets, all_labels = next(iter(new_loader))
 
 sns.histplot(all_snrs.numpy())
@@ -195,4 +226,5 @@ print(f'all snrs: {all_snrs}')
 plt.plot(final_losses)
 plt.title('loss over batches')
 plt.show()
+
 '''
