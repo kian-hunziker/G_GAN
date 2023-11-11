@@ -127,26 +127,24 @@ for batch_idx in range(N_BATCHES):
     pot_start_vecs = torch.cat((zero_start, random_starts))
 
     # pass potential start vectors through generator and compute initial losses
-    '''
-    with torch.no_grad():
-        start_approx = gen(pot_start_vecs, input_labels.repeat_interleave(N_START_POS, dim=0))
-        start_losses = torch.nn.functional.mse_loss(
-            start_approx.squeeze(), target_images.squeeze().repeat_interleave(N_START_POS, dim=0), reduction='none'
-        )
-        start_losses = torch.mean(start_losses, dim=(1, 2))
-        '''
-
     # chose start vector with minimal MSE for each example
+    # do this computation for each example separately to avoid memory issues for high values of N_START_POS
     start_vecs = []
     with torch.no_grad():
         for i in range(curr_batch_size):
             start_idx = i * N_START_POS
             end_idx = (i + 1) * N_START_POS
+
+            # compute approximations for current example
             start_approx = gen(pot_start_vecs[start_idx:end_idx], input_labels[i].unsqueeze(0).repeat_interleave(16, dim=0))
+
+            # compute loss
             start_losses = torch.nn.functional.mse_loss(
                 start_approx.squeeze(), target_images[i].repeat_interleave(N_START_POS, dim=0), reduction='none'
             )
             start_losses = torch.mean(start_losses, dim=(1, 2))
+
+            # chose start vector with minimal loss
             idx = torch.argmin(start_losses).item()
             start_vecs.append(pot_start_vecs[start_idx + idx])
 
