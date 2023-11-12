@@ -16,9 +16,9 @@ from utils.checkpoints import load_gen_disc_from_checkpoint, load_checkpoint, pr
 
 def plot_comparison(tar: torch.Tensor, approx: torch.Tensor, title: str):
     fig, ax = plt.subplots(1, 2)
-    ax[0].imshow(tar.detach().cpu().numpy(), cmap='gray')
+    ax[0].imshow(tar.squeeze().detach().cpu().numpy(), cmap='gray')
     ax[0].set_title('Target')
-    ax[1].imshow(approx.detach().cpu().numpy(), cmap='gray')
+    ax[1].imshow(approx.squeeze().detach().cpu().numpy(), cmap='gray')
     ax[1].set_title('Approximation')
     plt.suptitle(title)
     plt.show()
@@ -53,15 +53,16 @@ arg_parser.add_argument('-batch_size', default=64, type=int)
 arg_parser.add_argument('-n_batches', default=None, type=int)
 arg_parser.add_argument('-n_iter', default=300, type=int)
 arg_parser.add_argument('-n_start_pos', default=128, type=int)
+arg_parser.add_argument('-plot', default=False, type=bool)
 args = arg_parser.parse_args()
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 # fix random seed
-torch.manual_seed(42)
+torch.manual_seed(43)
 
-LR = 1e-2
-WEIGHT_DECAY = 1.0
+LR = 0.1
+WEIGHT_DECAY = 0.0
 IMG_SIZE = 28
 
 N_ITERATIONS = args.n_iter
@@ -71,6 +72,8 @@ if args.n_batches is None:
     N_BATCHES = int(np.ceil(10000 / BATCH_SIZE))
 else:
     N_BATCHES = args.n_batches
+PLOT = args.plot
+step_for_plot = 100
 
 # initialise lists to save batch results
 all_latent_noise_list = []
@@ -120,54 +123,65 @@ for batch_idx in range(N_BATCHES):
     curr_batch_size = target_images.shape[0]
 
     # initialise latent noise
-    # create potential start positions
-    # first position is zero vector, the remaining N_START_POS - 1 are random inputs
-    zero_start = torch.zeros(curr_batch_size, LATENT_DIM, dtype=torch.float32, device=device)
-    random_starts = torch.randn((N_START_POS - 1) * curr_batch_size, LATENT_DIM, dtype=torch.float32, device=device)
-    pot_start_vecs = torch.cat((zero_start, random_starts))
+    if N_START_POS > 1:
+        # create potential start positions
+        # first position is zero vector, the remaining N_START_POS - 1 are random inputs
+        zero_start = torch.zeros(curr_batch_size, LATENT_DIM, dtype=torch.float32, device=device)
+        random_starts = torch.randn((N_START_POS - 1) * curr_batch_size, LATENT_DIM, dtype=torch.float32, device=device)
+        pot_start_vecs = torch.cat((zero_start, random_starts))
 
-    # pass potential start vectors through generator and compute initial losses
-    # chose start vector with minimal MSE for each example
-    # do this computation for each example separately to avoid memory issues for high values of N_START_POS
-    start_vecs = []
-    with torch.no_grad():
-        for i in range(curr_batch_size):
-            start_idx = i * N_START_POS
-            end_idx = (i + 1) * N_START_POS
+        # pass potential start vectors through generator and compute initial losses
+        # chose start vector with minimal MSE for each example
+        # do this computation for each example separately to avoid memory issues for high values of N_START_POS
+        start_vecs = []
+        with torch.no_grad():
+            for i in range(curr_batch_size):
+                start_idx = i * N_START_POS
+                end_idx = (i + 1) * N_START_POS
 
-            # compute approximations for current example
-            start_approx = gen(pot_start_vecs[start_idx:end_idx], input_labels[i].unsqueeze(0).repeat_interleave(N_START_POS, dim=0))
+                # compute approximations for current example
+                start_approx = gen(pot_start_vecs[start_idx:end_idx], input_labels[i].unsqueeze(0).repeat_interleave(N_START_POS, dim=0))
 
-            # compute loss
-            start_losses = torch.nn.functional.mse_loss(
-                start_approx.squeeze(), target_images[i].repeat_interleave(N_START_POS, dim=0), reduction='none'
-            )
-            start_losses = torch.mean(start_losses, dim=(1, 2))
+                # compute loss
+                start_losses = torch.nn.functional.mse_loss(
+                    start_approx.squeeze(), target_images[i].repeat_interleave(N_START_POS, dim=0), reduction='none'
+                )
+                start_losses = torch.mean(start_losses, dim=(1, 2))
 
-            # chose start vector with minimal loss
-            idx = torch.argmin(start_losses).item()
-            start_vecs.append(pot_start_vecs[start_idx + idx])
+                # chose start vector with minimal loss
+                idx = torch.argmin(start_losses).item()
+                start_vecs.append(pot_start_vecs[start_idx + idx])
 
-    input_noise = torch.stack(start_vecs)
+        input_noise = torch.stack(start_vecs)
+    else:
+        input_noise = torch.zeros(curr_batch_size, LATENT_DIM, device=device, dtype=torch.float32)
     input_noise.requires_grad = True
 
-    # initialise loss function and optimizer
-    criterion = torch.nn.MSELoss(reduction='sum')
+    # initialise loss function, optimizer and scheduler
+    criterion = torch.nn.MSELoss(reduction='mean')
     optim = torch.optim.Adam([input_noise], lr=LR, weight_decay=WEIGHT_DECAY)
+    scheduler = torch.optim.lr_scheduler.StepLR(optim, step_size=100, gamma=0.95)
 
     approx = None
+    losses = []
 
     # main regression loop
     for i in range(N_ITERATIONS):
         optim.zero_grad()
 
         approx = gen(input_noise, input_labels)
-        loss = criterion(approx.squeeze(), target_images[:curr_batch_size].squeeze())
+        loss = criterion(approx, target_images)
 
         loss.backward()
         optim.step()
+        scheduler.step()
 
         progbar.update(1)
+        losses.append(loss.detach().cpu().numpy())
+
+        if PLOT is True and (i % step_for_plot == 0):
+            title = f'iteration : {i}\n current loss: {loss.detach().cpu().numpy():.4f}'
+            plot_comparison(tar=target_images[0], approx=approx[0], title=title)
 
     # compute SNRs and append results to lists
     final_losses.append(loss.detach().cpu().numpy())
@@ -185,7 +199,13 @@ progbar.close()
 latent_noise_results = torch.cat(all_latent_noise_list)
 all_snrs = torch.cat(snrs_list)
 
+if PLOT is True:
+    plt.plot(losses)
+    plt.title(f'loss over iterations, lr: {LR}')
+    plt.show()
+
 # save regression results
+
 save_regression_results(path_to_model=checkpoint_path,
                         latent_noise=latent_noise_results,
                         snrs=all_snrs,
