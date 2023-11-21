@@ -1,13 +1,10 @@
-import datetime
 import os
-from argparse import ArgumentParser
 
 import torch
 import torch.nn.functional as F
 import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
-from torchmetrics.functional.image import peak_signal_noise_ratio
 
 from generators import Generator
 from utils.checkpoints import load_gen_disc_from_checkpoint
@@ -41,7 +38,19 @@ def plot_loss_and_comparison(loss_for_plot, target, approximation, title):
 
 def single_regression(gen: Generator, start: torch.Tensor, target: torch.Tensor,
                       label: int, n_iter: int = 100, lr: float = 0.1, wd: float = 0.0,
-                      step_for_plot: int = 0):
+                      step_for_plot: int = 0) -> tuple[torch.Tensor, list]:
+    """
+    Perform a single regression for a given start vector and target.
+    :param gen: Generator for regression
+    :param start: input vector where the regression starts
+    :param target: target image
+    :param label: class label as int
+    :param n_iter: number of iterations for the regression
+    :param lr: learning rate for ADAM optim
+    :param wd: weight decay parameter (L2 norm) for ADAM, default = 0
+    :param step_for_plot: Plot intermediate results every step_for_plot regression steps
+    :return: final coordinate vector and list of losses for every regression step
+    """
     assert isinstance(label, int)
     target = target.squeeze().unsqueeze(0)
 
@@ -87,11 +96,29 @@ def single_regression(gen: Generator, start: torch.Tensor, target: torch.Tensor,
 
 
 def get_trace_single_regression(gen: Generator, start: torch.Tensor, target: torch.Tensor,
-                                label: int, n_iter: int = 100, lr: float = 0.01, wd: float = 0.0):
+                                label: int, n_iter: int = 100, lr: float = 0.01, wd: float = 0.0,
+                                scheduler_step_size: int = 1000,
+                                ret_intermediate_images: bool = False) -> tuple[list, list]:
+    """
+    Perform a single regression for given start vector, generator and target image. Return first two coordinates
+    and corresponding loss for every regression step. Also return the generated image for every regression step,
+    if enabled.
+    :param gen: Generator
+    :param start: Input coords to start regression from
+    :param target: Target image
+    :param label: Class label as int
+    :param n_iter: Number of regression steps
+    :param lr: Learning rate for ADAM optim
+    :param wd: Weight decay parameter for ADAM optim
+    :param scheduler_step_size: After this number of regression steps, the lr will be multiplied by 0.95
+    :param ret_intermediate_images: If true: return the generated image for every regression step. Else return an
+    empty list.
+    :return: [x_coords, y_coords, losses], [image] for every regression step.
+    """
     assert isinstance(label, int)
-    assert start.shape[0] == 2
     target = target.squeeze().unsqueeze(0)
 
+    images = []
     losses = []
     coords = [1.0 * start.squeeze().detach().cpu()]
     input_noise = 1.0 * start.squeeze()
@@ -99,10 +126,10 @@ def get_trace_single_regression(gen: Generator, start: torch.Tensor, target: tor
     label = F.one_hot(torch.tensor(label), 10).type(torch.float32).unsqueeze(0)
 
     optim = torch.optim.Adam([input_noise], lr=lr, weight_decay=wd)
-    # scheduler = torch.optim.lr_scheduler.StepLR(optim, step_size=100, gamma=0.95)
+    scheduler = torch.optim.lr_scheduler.StepLR(optim, step_size=scheduler_step_size, gamma=0.95)
 
     progbar = tqdm(total=n_iter)
-    progbar.set_description(f'Regression with {n_iter}iterations')
+    progbar.set_description(f'Regression with {n_iter} iterations')
 
     for i in range(n_iter):
         optim.zero_grad()
@@ -112,9 +139,13 @@ def get_trace_single_regression(gen: Generator, start: torch.Tensor, target: tor
 
         loss.backward()
         optim.step()
+        scheduler.step()
 
         losses.append(loss.detach().cpu())
         coords.append(1.0 * input_noise.detach().cpu())
+
+        if ret_intermediate_images is True:
+            images.append(approx.squeeze().detach().cpu().numpy())
 
         progbar.update(1)
 
@@ -122,16 +153,31 @@ def get_trace_single_regression(gen: Generator, start: torch.Tensor, target: tor
     losses.append(final_loss.detach().cpu())
     coords = torch.stack(coords)
 
+    if ret_intermediate_images is True:
+        final_approx = gen(input_noise.unsqueeze(0), label).squeeze().detach().cpu().numpy()
+        images.append(final_approx)
+
     x = coords.numpy()[:, 0]
     y = coords.numpy()[:, 1]
     z = torch.stack(losses).numpy()
 
     progbar.close()
 
-    return [x, y, z]
+    return [x, y, z], images
 
 
 def get_start_position(generator: Generator, latent_dim: int, target: torch.Tensor, label: int, n_start_pos: int = 64):
+    """
+    Get a start position for a regression given a generator and a target image. n_start_pos input vectors are
+    generated, and we chose the one with minimal MSE loss ||Gen(z) - target||. The first input is the zero vector,
+    the remaining ones are drawn from a normal distribution with dimension latent_dim.
+    :param generator: Generator
+    :param latent_dim: Dimension of input vectors
+    :param target: Target image
+    :param label: Class label as int
+    :param n_start_pos: Number of input vectors to evaluate
+    :return: Chosen start vector and 2D representation of all evaluated positions [x, y, loss]
+    """
     assert isinstance(label, int)
     labels = F.one_hot(torch.tensor(label), 10).type(torch.float32).unsqueeze(0).repeat_interleave(n_start_pos, dim=0)
     targets = target.squeeze().unsqueeze(0).unsqueeze(0).repeat_interleave(n_start_pos, dim=0)
@@ -171,4 +217,3 @@ def foo():
 
     start_pos, _ = get_start_position(gen, 64, target_images, label)
     lat_noise, loss = single_regression(gen, start_pos, target_images, label, n_iter=1000, step_for_plot=100)
-
