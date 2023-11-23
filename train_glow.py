@@ -17,7 +17,7 @@ warnings.simplefilter("ignore", UserWarning)
 
 torch.manual_seed(0)
 
-debug = False
+debug = True
 device = get_device(debug)
 project_root = os.getcwd()
 
@@ -78,7 +78,8 @@ dataset, train_loader = get_rotated_mnist_dataloader(root=project_root,
                                                      num_rotations=0,
                                                      no_labels=False,
                                                      img_size=image_size,
-                                                     single_class=None)
+                                                     single_class=None,
+                                                     glow=True)
 
 train_iter = iter(train_loader)
 
@@ -90,8 +91,8 @@ log_dir = f'runs/glow/{current_date}'
 summ_writer = SummaryWriter(log_dir)
 
 n_summary_examples = 4
-n_steps_for_summary = 2
-n_steps_for_checkpoint = 2
+n_steps_for_summary = 500
+n_steps_for_checkpoint = 10000
 summary_labels = torch.arange(num_classes).repeat(n_summary_examples).to(device)
 
 # setup for checkpointing and saving trained models
@@ -130,9 +131,11 @@ step = 0
 print('\n' + '-' * 32)
 print(f'Start training GLOW for {max_iter} iterations')
 print('-' * 32 + '\n')
-print(f'batch size: {batch_size}')
+print(f'Device: {device}')
+print(f'Batch size: {batch_size}')
 print(f'LR: {LR}')
 print(f'WD: {WD}')
+print(f'Img size: {image_size}')
 print('\n')
 
 
@@ -155,13 +158,18 @@ for i in tqdm(range(max_iter)):
 
     loss_hist = np.append(loss_hist, loss.detach().to('cpu').numpy())
 
-    if step % n_steps_for_summary == 0:
+    if (step < 1000 and step % 10 == 0) or (step % n_steps_for_summary == 0):
         with torch.no_grad():
             fake, _ = model.sample(y=summary_labels)
-            img_grid_fake = torchvision.utils.make_grid(fake, nrow=10, normalize=True)
+            fake_ = torch.clamp(fake, 0, 1)
+            img_grid_fake = torchvision.utils.make_grid(fake_, nrow=10)
+            img_grid_real = torchvision.utils.make_grid(x[:32], normalize=True)
 
             summ_writer.add_image(
                 'RotMNIST Fake Images', img_grid_fake, global_step=step
+            )
+            summ_writer.add_image(
+                'RotMNIST Real Images', img_grid_real, global_step=step
             )
             summ_writer.add_scalar(
                 'Model Loss', loss, global_step=step

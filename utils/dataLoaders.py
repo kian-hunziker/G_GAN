@@ -1,4 +1,6 @@
 import torch
+import torchvision
+import normflows as nf
 
 import torchvision.datasets as datasets
 from torch.utils.data import DataLoader
@@ -79,11 +81,17 @@ def get_rotated_mnist_dataloader(root,
                                  no_labels=False,
                                  img_size=28,
                                  train=True,
-                                 single_class=None) -> (RotMnistDataset, torch.utils.data.DataLoader):
+                                 single_class=None,
+                                 glow=False) -> (RotMnistDataset, torch.utils.data.DataLoader):
     # TODO: do we normalize the MNIST dataset?
-    transform = transforms.Compose(
-        [transforms.ToTensor(), transforms.Resize(img_size), transforms.Normalize((mean,), (std,))]
-    )
+    if glow is True:
+        transform = transforms.Compose(
+            [transforms.ToTensor(), transforms.Resize(img_size), nf.utils.Scale(255. / 256.), nf.utils.Jitter(1 / 256.)]
+        )
+    else:
+        transform = transforms.Compose(
+            [transforms.ToTensor(), transforms.Resize(img_size), transforms.Normalize((mean,), (std,))]
+        )
     # check if dataset already exists
     suffix = f'_{num_examples}ex_{num_rotations}rot_{max_angle}deg'
     if train is True:
