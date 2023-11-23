@@ -17,7 +17,7 @@ warnings.simplefilter("ignore", UserWarning)
 
 torch.manual_seed(0)
 
-debug = True
+debug = False
 device = get_device(debug)
 project_root = os.getcwd()
 
