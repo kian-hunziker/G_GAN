@@ -8,7 +8,7 @@ import seaborn as sns
 
 from generators import Generator
 from utils.checkpoints import load_gen_disc_from_checkpoint
-from utils.dataLoaders import get_rotated_mnist_dataloader
+from utils.data_loaders import get_rotated_mnist_dataloader
 
 from tqdm import tqdm
 

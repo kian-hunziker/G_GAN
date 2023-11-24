@@ -8,7 +8,7 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 
 from utils.checkpoints import load_glow_from_checkpoint
-from utils.dataLoaders import get_rotated_mnist_dataloader
+from utils.data_loaders import get_rotated_mnist_dataloader
 
 from tqdm import tqdm
 

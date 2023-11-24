@@ -15,7 +15,7 @@ import matplotlib.pyplot as plt
 from generators import Generator
 from discriminators import Discriminator
 from utils.checkpoints import load_gen_disc_from_checkpoint, load_checkpoint, print_checkpoint
-from utils.dataLoaders import get_rotated_mnist_dataloader
+from utils.data_loaders import get_rotated_mnist_dataloader
 from utils.optimizers import get_optimizers
 
 device = 'cpu'

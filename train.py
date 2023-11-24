@@ -13,10 +13,10 @@ from tqdm import tqdm
 import utils.parameters
 from generators import Generator, initialize_weights
 from discriminators import Discriminator
-from utils.dataLoaders import get_rotated_mnist_dataloader, get_standard_mnist_dataloader
+from utils.data_loaders import get_rotated_mnist_dataloader, get_standard_mnist_dataloader
 from utils.optimizers import get_optimizers
 from utils.gradient_penalty import zero_centered_gp_real_data, vanilla_gp
-from utils.getDevice import get_device
+from utils.get_device import get_device
 
 # TODO name networks properly
 IDENTIFIER_FOR_SAVING = 'test'

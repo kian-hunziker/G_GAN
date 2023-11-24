@@ -6,7 +6,7 @@ import torch
 
 import generators
 import discriminators
-import utils.dataLoaders
+import utils.data_loaders
 
 
 class TestGenerators(unittest.TestCase):

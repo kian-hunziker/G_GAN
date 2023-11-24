@@ -9,8 +9,8 @@ import numpy as np
 import datetime
 from tqdm import tqdm
 
-from utils.dataLoaders import get_rotated_mnist_dataloader, get_standard_mnist_dataloader
-from utils.getDevice import get_device
+from utils.data_loaders import get_rotated_mnist_dataloader, get_standard_mnist_dataloader
+from utils.get_device import get_device
 
 import warnings
 warnings.simplefilter("ignore", UserWarning)

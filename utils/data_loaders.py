@@ -8,7 +8,7 @@ import torchvision.transforms as transforms
 import matplotlib.pyplot as plt
 import numpy as np
 import os.path
-import utils.rotateMNIST
+import utils.rotate_mnist
 
 
 class RotMnistDataset(torch.utils.data.Dataset):

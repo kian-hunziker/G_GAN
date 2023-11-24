@@ -10,7 +10,7 @@ from torchmetrics.functional.image import peak_signal_noise_ratio
 
 from tqdm import tqdm
 
-from utils.dataLoaders import get_rotated_mnist_dataloader
+from utils.data_loaders import get_rotated_mnist_dataloader
 from utils.checkpoints import load_gen_disc_from_checkpoint, load_checkpoint, print_checkpoint
 
 
