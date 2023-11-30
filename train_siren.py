@@ -72,7 +72,7 @@ debug = False
 device = get_device(debug)
 
 batch_size = 2048
-lr = 1e-5
+lr = 1e-6
 epochs = 300
 
 patched_dataset = PatchedImage(img_path, patch_size=8)
@@ -95,8 +95,8 @@ gt_loader = DataLoader(patched_dataset, batch_size=summary_batch_size, shuffle=F
 gt_iter = iter(gt_loader)
 
 losses = []
-step_for_summary_loss = 100
-step_for_summary_reconstruction = 200
+step_for_summary_loss = 50
+step_for_summary_reconstruction = 100
 step_for_checkpoint = 1000
 
 current_date = datetime.datetime.now().strftime("%Y-%m-%d_%H:%M:%S")
@@ -133,6 +133,7 @@ def save_checkpoint(n_iterations, loss_hist):
         'disc_arch': '',
         'generator': siren.state_dict(),
         'lr': lr,
+        'batch_size': batch_size,
         'loss_hist': loss_hist
     }
     torch.save(checkpoint, checkpoint_path)
@@ -144,6 +145,7 @@ def save_checkpoint(n_iterations, loss_hist):
 print('-' * 32)
 print(f'Start training')
 print(f'device: {device}')
+print(f'learning rate: {lr}')
 print(f'batch size: {batch_size}')
 print(f'num epochs: {epochs}')
 print('-' * 32 + '\n')
