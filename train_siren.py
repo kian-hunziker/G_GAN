@@ -172,7 +172,7 @@ for step in range(total_iterations):
     glow_patches, _ = glow_model.forward_and_log_det(z)
 
     # compute MSE loss
-    loss = criterion(glow_patches.squeeze(), true_patches) + 0.005 * torch.linalg.norm(z_siren)
+    loss = criterion(glow_patches.squeeze()[:, 3:6, 3:6], true_patches[:, 3:6, 3:6]) #+ 0.005 * torch.linalg.norm(z_siren)
     losses.append(loss.detach().cpu().numpy())
 
     if step % step_for_summary_loss == 0:
