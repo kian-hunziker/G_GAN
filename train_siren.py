@@ -73,7 +73,7 @@ device = get_device(debug)
 
 batch_size = 2048
 lr = 1e-5
-epochs = 10
+epochs = 300
 
 patched_dataset = PatchedImage(img_path, patch_size=8)
 patched_loader = DataLoader(patched_dataset, batch_size=batch_size, shuffle=True)
