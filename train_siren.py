@@ -84,7 +84,8 @@ glow_model = load_glow_from_checkpoint(glow_path, device=device, arch='lodopab')
 siren = Siren(in_features=2, out_features=64, hidden_features=256, hidden_layers=3, outermost_linear=True).to(device)
 optim = torch.optim.Adam(params=siren.parameters(), lr=lr)
 criterion = F.mse_loss
-total_iterations = 6  # epochs * len(patched_dataset
+
+total_iterations = epochs * len(patched_dataset)
 
 # ---------------------------------------------------------------------------------------------------------
 # Setup for summary writer and checkpointing
@@ -95,7 +96,7 @@ gt_iter = iter(gt_loader)
 
 losses = []
 step_for_summary_loss = 100
-step_for_summary_reconstruction = 1000
+step_for_summary_reconstruction = 100
 
 current_date = datetime.datetime.now().strftime("%Y-%m-%d_%H:%M:%S")
 log_dir = f'runs/siren/{current_date}'
@@ -145,7 +146,7 @@ for step in range(total_iterations):
         gt_iter = iter(gt_loader)
         with torch.no_grad():
             for i, (gt_coords, gt_patches) in enumerate(gt_iter):
-                z_summary, _ = siren(gt_coords)
+                z_summary, _ = siren(gt_coords.to(device))
                 z_summary = reshape_z_for_glow(z_summary, glow_model)
                 temp_patches, _ = glow_model.forward_and_log_det(z_summary)
                 summary_patches.append(temp_patches.detach().cpu())
