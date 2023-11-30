@@ -143,10 +143,10 @@ for i in tqdm(range(max_iter)):
             img_grid_real = torchvision.utils.make_grid(x[:32])
 
             summ_writer.add_image(
-                'RotMNIST Fake Images', img_grid_fake, global_step=step
+                'Fake Patches', img_grid_fake, global_step=step
             )
             summ_writer.add_image(
-                'RotMNIST Real Images', img_grid_real, global_step=step
+                'Real Patches', img_grid_real, global_step=step
             )
             summ_writer.add_scalar(
                 'Model Loss', loss, global_step=step
