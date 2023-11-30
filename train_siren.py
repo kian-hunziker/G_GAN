@@ -109,7 +109,7 @@ for i, (gt_coords, gt_patches) in enumerate(gt_iter):
 all_patches = torch.cat(all_patches)
 reconstructed_image = unpatchify(all_patches.numpy().reshape(355, 355, 8, 8), (362, 362))
 summ_writer.add_image(
-    'Ground Truth', reconstructed_image, global_step=0
+    'Ground Truth', reconstructed_image, global_step=0, dataformats='HW'
 )
 
 # ---------------------------------------------------------------------------------------------------------
@@ -154,7 +154,7 @@ for step in range(total_iterations):
         summary_reconstruction = unpatchify(summary_patches, (362, 362))
 
         summ_writer.add_image(
-            'Reconstruction', summary_reconstruction, global_step=step
+            'Reconstruction', summary_reconstruction, global_step=step, dataformats='HW'
         )
 
     # gradient descent
