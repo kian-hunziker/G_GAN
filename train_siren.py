@@ -65,7 +65,7 @@ def reshape_z_for_glow(z_vec, glow_instance):
     return z
 
 
-glow_path = 'trained_models/glow/2023-11-30_13:26:30/checkpoint_70000'
+glow_path = 'trained_models/glow/2023-11-30_13:26:30/checkpoint_100000'
 img_path = 'datasets/LoDoPaB/ground_truth_train/ground_truth_train_000.hdf5'
 
 debug = False
