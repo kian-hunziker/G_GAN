@@ -65,7 +65,7 @@ def reshape_z_for_glow(z_vec, glow_instance):
     return z
 
 
-glow_path = 'trained_models/glow/2023-11-30_13:26:30/checkpoint_40000'
+glow_path = 'trained_models/glow/2023-11-30_13:26:30/checkpoint_70000'
 img_path = 'datasets/LoDoPaB/ground_truth_train/ground_truth_train_000.hdf5'
 
 debug = False
@@ -116,11 +116,20 @@ summ_writer.add_image(
 # ---------------------------------------------------------------------------------------------------------
 # Train SIREN
 # ---------------------------------------------------------------------------------------------------------
+print('-' * 32)
+print(f'Start training')
+print(f'device: {device}')
+print('-' * 32 + '\n')
+
 prog_bar = tqdm(total=total_iterations)
 
 for step in range(total_iterations):
     # get coords in range [-1, 1] and corresponding patches
-    coords, true_patches = next(patched_iter)
+    try:
+        coords, true_patches = next(patched_iter)
+    except StopIteration:
+        patched_iter = iter(patched_loader)
+        coords, true_patches = next(patched_iter)
     coords = coords.to(device)
     true_patches = true_patches.to(device)
 
