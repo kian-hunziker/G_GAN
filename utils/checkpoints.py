@@ -55,6 +55,8 @@ def load_glow_from_checkpoint(path: str, device: str | torch.device = 'cpu', arc
         model = glow_models.get_cc_mnist_glow_model()
     elif arch == 'unconditional_mnist':
         model = glow_models.get_unconditional_mnist_glow_model()
+    elif arch == 'lodopab':
+        model = glow_models.get_lodopab_glow_model()
 
     checkpoint = torch.load(path, map_location=device)
     model.load_state_dict(checkpoint['generator'])
