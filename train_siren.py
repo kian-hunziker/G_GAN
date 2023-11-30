@@ -71,8 +71,8 @@ img_path = 'datasets/LoDoPaB/ground_truth_train/ground_truth_train_000.hdf5'
 debug = False
 device = get_device(debug)
 
-batch_size = 1024
-lr = 5e-5
+batch_size = 2048
+lr = 1e-5
 epochs = 10
 
 patched_dataset = PatchedImage(img_path, patch_size=8)
@@ -144,6 +144,8 @@ def save_checkpoint(n_iterations, loss_hist):
 print('-' * 32)
 print(f'Start training')
 print(f'device: {device}')
+print(f'batch size: {batch_size}')
+print(f'num epochs: {epochs}')
 print('-' * 32 + '\n')
 
 prog_bar = tqdm(total=total_iterations)

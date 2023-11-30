@@ -54,7 +54,7 @@ dataset, train_loader = get_rotated_mnist_dataloader(root=project_root,
                                                      '''
 
 lodopad_path = 'datasets/LoDoPaB/ground_truth_train/ground_truth_train_000.hdf5'
-batch_size = 512
+batch_size = 2048
 dataset = utils.lodopab_dataset.LodopabDataset(file_path=lodopad_path, patch_size=8,)
 train_loader = DataLoader(dataset=dataset, batch_size=batch_size, shuffle=True)
 
