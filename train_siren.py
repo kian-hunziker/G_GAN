@@ -72,7 +72,7 @@ debug = False
 device = get_device(debug)
 
 batch_size = 64
-lr = 1e-4
+lr = 5e-5
 epochs = 5
 
 patched_dataset = PatchedImage(img_path, patch_size=8)
@@ -96,7 +96,8 @@ gt_iter = iter(gt_loader)
 
 losses = []
 step_for_summary_loss = 100
-step_for_summary_reconstruction = 100
+step_for_summary_reconstruction = 200
+step_for_checkpoint = 1000
 
 current_date = datetime.datetime.now().strftime("%Y-%m-%d_%H:%M:%S")
 log_dir = f'runs/siren/{current_date}'
@@ -112,6 +113,30 @@ reconstructed_image = unpatchify(all_patches.numpy().reshape(355, 355, 8, 8), (3
 summ_writer.add_image(
     'Ground Truth', reconstructed_image, global_step=0, dataformats='HW'
 )
+
+# setup for checkpointing and saving trained models
+trained_models_path = f'trained_models/siren'
+if not os.path.isdir(trained_models_path):
+    os.mkdir(path=trained_models_path)
+    print(f'created new directory {trained_models_path}')
+trained_models_path = f'{trained_models_path}/{current_date}'
+if not os.path.isdir(trained_models_path):
+    os.mkdir(path=trained_models_path)
+    print(f'created new directory {trained_models_path}')
+
+
+def save_checkpoint(n_iterations, loss_hist):
+    checkpoint_path = f'{trained_models_path}/checkpoint_{n_iterations}'
+    checkpoint = {
+        'iterations': n_iterations,
+        'gen_arch': 'siren',
+        'disc_arch': '',
+        'generator': siren.state_dict(),
+        'lr': lr,
+        'loss_hist': loss_hist
+    }
+    torch.save(checkpoint, checkpoint_path)
+
 
 # ---------------------------------------------------------------------------------------------------------
 # Train SIREN
@@ -166,6 +191,8 @@ for step in range(total_iterations):
         summ_writer.add_image(
             'Reconstruction', summary_reconstruction, global_step=step, dataformats='HW'
         )
+    if step > 0 and step % step_for_checkpoint == 0:
+        save_checkpoint(step, losses)
 
     # gradient descent
     optim.zero_grad()
