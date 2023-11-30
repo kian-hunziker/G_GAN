@@ -4,12 +4,14 @@ import torch
 import torchvision
 import normflows as nf
 from torch.utils.tensorboard import SummaryWriter
+from torch.utils.data import DataLoader
 import numpy as np
 
 import datetime
 from tqdm import tqdm
 
 import glow_models
+import utils.lodopab_dataset
 from utils.data_loaders import get_rotated_mnist_dataloader, get_standard_mnist_dataloader
 from utils.get_device import get_device
 
@@ -29,15 +31,14 @@ LR = 1e-3
 WD = 1e-5
 
 image_size = 16
-num_classes = 10
 
-model = glow_models.get_unconditional_mnist_glow_model()
+model = glow_models.get_lodopab_glow_model()
 model = model.to(device)
 
 # ---------------------------------------------------------------------------------------------------------
 # Prepare training data
 # ---------------------------------------------------------------------------------------------------------
-
+'''
 batch_size = 128
 
 dataset, train_loader = get_rotated_mnist_dataloader(root=project_root,
@@ -50,6 +51,12 @@ dataset, train_loader = get_rotated_mnist_dataloader(root=project_root,
                                                      img_size=image_size,
                                                      single_class=None,
                                                      glow=True)
+                                                     '''
+
+lodopad_path = 'datasets/LoDoPaB/ground_truth_train/ground_truth_train_000.hdf5'
+batch_size = 512
+dataset = utils.lodopab_dataset.LodopabDataset(file_path=lodopad_path, patch_size=8,)
+train_loader = DataLoader(dataset=dataset, batch_size=batch_size, shuffle=True)
 
 train_iter = iter(train_loader)
 
@@ -80,6 +87,7 @@ def save_checkpoint(n_iterations, loss_hist):
     checkpoint = {
         'iterations': n_iterations,
         'gen_arch': 'glow',
+        'img_size': image_size,
         'disc_arch': '',
         'generator': model.state_dict(),
         'lr': LR,
@@ -114,10 +122,10 @@ optimizer = torch.optim.Adamax(model.parameters(), lr=LR, weight_decay=WD)
 
 for i in tqdm(range(max_iter)):
     try:
-        x, y = next(train_iter)
+        x = next(train_iter)
     except StopIteration:
         train_iter = iter(train_loader)
-        x, y = next(train_iter)
+        x = next(train_iter)
     optimizer.zero_grad()
     loss = model.forward_kld(x.to(device))
 
@@ -130,9 +138,9 @@ for i in tqdm(range(max_iter)):
     if (step < 1000 and step % 10 == 0) or (step % n_steps_for_summary == 0):
         with torch.no_grad():
             fake, _ = model.sample(num_samples=n_summary_examples, y=None)
-            fake_ = torch.clamp(fake, 0, 1)
-            img_grid_fake = torchvision.utils.make_grid(fake_, nrow=10)
-            img_grid_real = torchvision.utils.make_grid(x[:32], normalize=True)
+            #fake_ = torch.clamp(fake, 0, 1)
+            img_grid_fake = torchvision.utils.make_grid(fake, nrow=10)
+            img_grid_real = torchvision.utils.make_grid(x[:32])
 
             summ_writer.add_image(
                 'RotMNIST Fake Images', img_grid_fake, global_step=step
