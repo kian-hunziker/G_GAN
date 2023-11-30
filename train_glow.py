@@ -9,6 +9,7 @@ import numpy as np
 import datetime
 from tqdm import tqdm
 
+import glow_models
 from utils.data_loaders import get_rotated_mnist_dataloader, get_standard_mnist_dataloader
 from utils.get_device import get_device
 
@@ -27,41 +28,10 @@ project_root = os.getcwd()
 LR = 1e-3
 WD = 1e-5
 
-# Define flows
-L = 3
-K = 16
-
 image_size = 16
-input_shape = (1, image_size, image_size)
-n_dims = np.prod(input_shape)
-channels = 1
-hidden_channels = 256
-split_mode = 'channel'
-scale = True
 num_classes = 10
 
-# Set up flows, distributions and merge operations
-q0 = []
-merges = []
-flows = []
-for i in range(L):
-    flows_ = []
-    for j in range(K):
-        flows_ += [nf.flows.GlowBlock(channels * 2 ** (L + 1 - i), hidden_channels,
-                                      split_mode=split_mode, scale=scale)]
-    flows_ += [nf.flows.Squeeze()]
-    flows += [flows_]
-    if i > 0:
-        merges += [nf.flows.Merge()]
-        latent_shape = (input_shape[0] * 2 ** (L - i), input_shape[1] // 2 ** (L - i),
-                        input_shape[2] // 2 ** (L - i))
-    else:
-        latent_shape = (input_shape[0] * 2 ** (L + 1), input_shape[1] // 2 ** L,
-                        input_shape[2] // 2 ** L)
-    q0 += [nf.distributions.ClassCondDiagGaussian(latent_shape, num_classes)]
-
-# Construct flow model with the multiscale architecture
-model = nf.MultiscaleFlow(q0, flows, merges)
+model = glow_models.get_unconditional_mnist_glow_model()
 model = model.to(device)
 
 # ---------------------------------------------------------------------------------------------------------
@@ -90,10 +60,9 @@ current_date = datetime.datetime.now().strftime("%Y-%m-%d_%H:%M:%S")
 log_dir = f'runs/glow/{current_date}'
 summ_writer = SummaryWriter(log_dir)
 
-n_summary_examples = 4
+n_summary_examples = 40
 n_steps_for_summary = 500
 n_steps_for_checkpoint = 10000
-summary_labels = torch.arange(num_classes).repeat(n_summary_examples).to(device)
 
 # setup for checkpointing and saving trained models
 trained_models_path = f'trained_models/glow'
@@ -150,7 +119,7 @@ for i in tqdm(range(max_iter)):
         train_iter = iter(train_loader)
         x, y = next(train_iter)
     optimizer.zero_grad()
-    loss = model.forward_kld(x.to(device), y.to(device))
+    loss = model.forward_kld(x.to(device))
 
     if ~(torch.isnan(loss) | torch.isinf(loss)):
         loss.backward()
@@ -160,7 +129,7 @@ for i in tqdm(range(max_iter)):
 
     if (step < 1000 and step % 10 == 0) or (step % n_steps_for_summary == 0):
         with torch.no_grad():
-            fake, _ = model.sample(y=summary_labels)
+            fake, _ = model.sample(num_samples=n_summary_examples, y=None)
             fake_ = torch.clamp(fake, 0, 1)
             img_grid_fake = torchvision.utils.make_grid(fake_, nrow=10)
             img_grid_real = torchvision.utils.make_grid(x[:32], normalize=True)
@@ -175,7 +144,7 @@ for i in tqdm(range(max_iter)):
                 'Model Loss', loss, global_step=step
             )
 
-    if step % n_steps_for_checkpoint == 0:
+    if step > 0 and step % n_steps_for_checkpoint == 0:
         save_checkpoint(step, loss_hist)
 
     step += 1
