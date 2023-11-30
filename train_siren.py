@@ -71,8 +71,8 @@ img_path = 'datasets/LoDoPaB/ground_truth_train/ground_truth_train_000.hdf5'
 debug = False
 device = get_device(debug)
 
-batch_size = 2048
-lr = 1e-6
+batch_size = 1024
+lr = 1e-5
 epochs = 300
 
 patched_dataset = PatchedImage(img_path, patch_size=8)
@@ -172,7 +172,7 @@ for step in range(total_iterations):
     glow_patches, _ = glow_model.forward_and_log_det(z)
 
     # compute MSE loss
-    loss = criterion(glow_patches.squeeze(), true_patches)
+    loss = criterion(glow_patches.squeeze(), true_patches) + 0.005 * torch.linalg.norm(z_siren)
     losses.append(loss.detach().cpu().numpy())
 
     if step % step_for_summary_loss == 0:
