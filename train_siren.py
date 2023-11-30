@@ -71,9 +71,9 @@ img_path = 'datasets/LoDoPaB/ground_truth_train/ground_truth_train_000.hdf5'
 debug = False
 device = get_device(debug)
 
-batch_size = 64
+batch_size = 1024
 lr = 5e-5
-epochs = 5
+epochs = 10
 
 patched_dataset = PatchedImage(img_path, patch_size=8)
 patched_loader = DataLoader(patched_dataset, batch_size=batch_size, shuffle=True)
@@ -85,7 +85,7 @@ siren = Siren(in_features=2, out_features=64, hidden_features=256, hidden_layers
 optim = torch.optim.Adam(params=siren.parameters(), lr=lr)
 criterion = F.mse_loss
 
-total_iterations = epochs * len(patched_dataset)
+total_iterations = epochs * len(patched_dataset) // batch_size
 
 # ---------------------------------------------------------------------------------------------------------
 # Setup for summary writer and checkpointing
@@ -184,7 +184,6 @@ for step in range(total_iterations):
                 z_summary = reshape_z_for_glow(z_summary, glow_model)
                 temp_patches, _ = glow_model.forward_and_log_det(z_summary)
                 summary_patches.append(temp_patches.detach().cpu())
-                prog_bar.update(1)
         summary_patches = torch.cat(summary_patches).numpy().reshape(355, 355, 8, 8)
         summary_reconstruction = unpatchify(summary_patches, (362, 362))
 
