@@ -55,7 +55,8 @@ dataset, train_loader = get_rotated_mnist_dataloader(root=project_root,
 
 lodopad_path = 'datasets/LoDoPaB/ground_truth_train/ground_truth_train_000.hdf5'
 batch_size = 2048
-dataset = utils.lodopab_dataset.LodopabDataset(file_path=lodopad_path, patch_size=8,)
+num_images = 1
+dataset = utils.lodopab_dataset.LodopabDataset(file_path=lodopad_path, patch_size=8, num_images=num_images)
 train_loader = DataLoader(dataset=dataset, batch_size=batch_size, shuffle=True)
 
 train_iter = iter(train_loader)
@@ -92,7 +93,8 @@ def save_checkpoint(n_iterations, loss_hist):
         'generator': model.state_dict(),
         'lr': LR,
         'wd': WD,
-        'loss_hist': loss_hist
+        'num_images': num_images,
+        'loss_hist': loss_hist,
     }
     torch.save(checkpoint, checkpoint_path)
 
@@ -113,6 +115,7 @@ print(f'Batch size: {batch_size}')
 print(f'LR: {LR}')
 print(f'WD: {WD}')
 print(f'Img size: {image_size}')
+print(f'Number of training images: {num_images}')
 print('\n')
 
 

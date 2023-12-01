@@ -5,12 +5,13 @@ from patchify import patchify
 
 
 class LodopabDataset(torch.utils.data.Dataset):
-    def __init__(self, file_path: str, patch_size: int = 8, print_output: bool = True):
+    def __init__(self, file_path: str, patch_size: int = 8, num_images: int = 128, print_output: bool = True):
         f = h5py.File(file_path, 'r')
         images = f['data'][:]
         self.img_size = images.shape[-1]
         self.patch_size = patch_size
-        self.num_images = images.shape[0]
+        assert num_images <= images.shape[0]
+        self.num_images = num_images
         self.num_patches_per_image = (self.img_size - self.patch_size + 1) ** 2
         self.total_num_patches = self.num_patches_per_image * self.num_images
 
