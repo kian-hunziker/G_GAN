@@ -1,4 +1,5 @@
 import datetime
+from sys import platform
 
 import torch
 import numpy as np
@@ -68,19 +69,25 @@ def reshape_z_for_glow(z_vec, glow_instance):
 glow_path = 'trained_models/glow/2023-11-30_13:26:30/checkpoint_100000'
 img_path = 'datasets/LoDoPaB/ground_truth_train/ground_truth_train_000.hdf5'
 
-debug = False
+debug = platform == 'darwin'
 device = get_device(debug)
 
 batch_size = 1024
-lr = 1e-5
+lr = 1e-4
 epochs = 300
+N = 362
+P = 8
+patch_dim = N - P + 1
 
-patched_dataset = PatchedImage(img_path, patch_size=8)
+# Setup data loader
+patched_dataset = PatchedImage(img_path, patch_size=P)
 patched_loader = DataLoader(patched_dataset, batch_size=batch_size, shuffle=True)
 patched_iter = iter(patched_loader)
 
+# load GLOW model
 glow_model = load_glow_from_checkpoint(glow_path, device=device, arch='lodopab')
 
+# initialize SIREN and optimizer
 siren = Siren(in_features=2, out_features=64, hidden_features=256, hidden_layers=3, outermost_linear=True).to(device)
 optim = torch.optim.Adam(params=siren.parameters(), lr=lr)
 criterion = F.mse_loss
@@ -105,11 +112,13 @@ summ_writer = SummaryWriter(log_dir)
 
 all_patches = []
 gt_iter = iter(gt_loader)
+
+# add ground truth image to summary writer
 for i, (gt_coords, gt_patches) in enumerate(gt_iter):
     all_patches.append(gt_patches)
 
 all_patches = torch.cat(all_patches)
-reconstructed_image = unpatchify(all_patches.numpy().reshape(355, 355, 8, 8), (362, 362))
+reconstructed_image = unpatchify(all_patches.numpy().reshape(patch_dim, patch_dim, P, P), (N, N))
 summ_writer.add_image(
     'Ground Truth', reconstructed_image, global_step=0, dataformats='HW'
 )
@@ -172,14 +181,20 @@ for step in range(total_iterations):
     glow_patches, _ = glow_model.forward_and_log_det(z)
 
     # compute MSE loss
-    loss = criterion(glow_patches.squeeze()[:, 3:6, 3:6], true_patches[:, 3:6, 3:6]) #+ 0.005 * torch.linalg.norm(z_siren)
+    loss = criterion(glow_patches.squeeze()[:, 4:5, 4:5], true_patches[:, 4:5, 4:5]) #+ 0.005 * torch.linalg.norm(z_siren)
     losses.append(loss.detach().cpu().numpy())
 
+    # gradient descent
+    optim.zero_grad()
+    loss.backward()
+    optim.step()
+
+    # summary
     if step % step_for_summary_loss == 0:
         summ_writer.add_scalar(
             'Loss', loss, global_step=step
         )
-    if step % step_for_summary_reconstruction == 0:
+    if not debug and step % step_for_summary_reconstruction == 0:
         summary_patches = []
         gt_iter = iter(gt_loader)
         with torch.no_grad():
@@ -188,19 +203,14 @@ for step in range(total_iterations):
                 z_summary = reshape_z_for_glow(z_summary, glow_model)
                 temp_patches, _ = glow_model.forward_and_log_det(z_summary)
                 summary_patches.append(temp_patches.detach().cpu())
-        summary_patches = torch.cat(summary_patches).numpy().reshape(355, 355, 8, 8)
-        summary_reconstruction = unpatchify(summary_patches, (362, 362))
+        summary_patches = torch.cat(summary_patches).numpy().reshape(patch_dim, patch_dim, P, P)
+        summary_reconstruction = unpatchify(summary_patches, (N, N))
 
         summ_writer.add_image(
             'Reconstruction', summary_reconstruction, global_step=step, dataformats='HW'
         )
     if step > 0 and step % step_for_checkpoint == 0:
         save_checkpoint(step, losses)
-
-    # gradient descent
-    optim.zero_grad()
-    loss.backward()
-    optim.step()
 
     prog_bar.update(1)
 
