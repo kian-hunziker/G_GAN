@@ -30,7 +30,6 @@ project_root = os.getcwd()
 LR = 1e-3
 WD = 1e-5
 
-image_size = 16
 
 model = glow_models.get_lodopab_glow_model()
 model = model.to(device)
@@ -88,7 +87,6 @@ def save_checkpoint(n_iterations, loss_hist):
     checkpoint = {
         'iterations': n_iterations,
         'gen_arch': 'glow',
-        'img_size': image_size,
         'disc_arch': '',
         'generator': model.state_dict(),
         'lr': LR,
@@ -114,7 +112,6 @@ print(f'Device: {device}')
 print(f'Batch size: {batch_size}')
 print(f'LR: {LR}')
 print(f'WD: {WD}')
-print(f'Img size: {image_size}')
 print(f'Number of training images: {num_images}')
 print('\n')
 
