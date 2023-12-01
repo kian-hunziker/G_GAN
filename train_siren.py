@@ -69,24 +69,25 @@ def reshape_z_for_glow(z_vec, glow_instance):
         z.append(z_temp)
     return z
 
+
 # fix random seeds
 torch.manual_seed(0)
 np.random.seed(0)
 
-#glow_path = 'trained_models/glow/2023-11-30_13:26:30/checkpoint_100000'
-glow_path = 'trained_models/glow/2023-12-01_09:01:05/checkpoint_12307'
+glow_path = 'trained_models/glow/2023-11-30_13:26:30/checkpoint_100000'
+#glow_path = 'trained_models/glow/2023-12-01_09:01:05/checkpoint_12307'
 img_path = 'datasets/LoDoPaB/ground_truth_train/ground_truth_train_000.hdf5'
 
 debug = platform == 'darwin'
 device = get_device(debug)
 
-batch_size = 1024
+batch_size = 2048
 lr = 1e-4
 epochs = 300
 N = 362
 P = 8
 patch_dim = N - P + 1
-first_omega_0 = 100
+first_omega_0 = 30
 
 # Setup data loader
 patched_dataset = PatchedImage(img_path, patch_size=P)
