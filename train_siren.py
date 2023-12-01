@@ -76,7 +76,7 @@ debug = platform == 'darwin'
 device = get_device(debug)
 
 batch_size = 2048
-lr = 2e-4
+lr = 1e-4
 epochs = 300
 N = 362
 P = 8
@@ -98,7 +98,7 @@ siren = Siren(in_features=2,
               hidden_layers=3,
               outermost_linear=True,
               first_omega_0=first_omega_0).to(device)
-optim = torch.optim.Adam(params=siren.parameters(), lr=lr, eps=1e-3)
+optim = torch.optim.Adam(params=siren.parameters(), lr=lr)
 criterion = F.mse_loss
 
 total_iterations = epochs * len(patched_dataset) // batch_size
@@ -192,8 +192,8 @@ for step in range(total_iterations):
     glow_patches, _ = glow_model.forward_and_log_det(z)
 
     # compute MSE loss
-    loss = criterion(glow_patches.squeeze(), true_patches) #+ 0.005 * torch.linalg.norm(z_siren)
-    # loss = criterion(glow_patches.squeeze()[:, 4:5, 4:5], true_patches[:, 4:5, 4:5])
+    loss = criterion(glow_patches.squeeze(), true_patches)
+    # loss = criterion(glow_patches.squeeze()[:, 4:5, 4:5], true_patches[:, 4:5, 4:5]) #+ 0.005 * torch.linalg.norm(z_siren)
     losses.append(loss.detach().cpu().numpy())
 
     # gradient descent
@@ -231,3 +231,4 @@ for step in range(total_iterations):
     prog_bar.update(1)
 
 prog_bar.close()
+save_checkpoint(step, losses)
