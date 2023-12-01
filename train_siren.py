@@ -20,6 +20,7 @@ from utils.siren_mgrid import get_mgrid
 from siren import Siren
 from utils.checkpoints import load_glow_from_checkpoint
 from utils.get_device import get_device
+from utils.patcher import unpatch
 
 import warnings
 
@@ -66,7 +67,8 @@ def reshape_z_for_glow(z_vec, glow_instance):
     return z
 
 
-glow_path = 'trained_models/glow/2023-11-30_13:26:30/checkpoint_100000'
+#glow_path = 'trained_models/glow/2023-11-30_13:26:30/checkpoint_100000'
+glow_path = 'trained_models/glow/2023-12-01_09:01:05/checkpoint_12307'
 img_path = 'datasets/LoDoPaB/ground_truth_train/ground_truth_train_000.hdf5'
 
 debug = platform == 'darwin'
@@ -181,7 +183,8 @@ for step in range(total_iterations):
     glow_patches, _ = glow_model.forward_and_log_det(z)
 
     # compute MSE loss
-    loss = criterion(glow_patches.squeeze()[:, 4:5, 4:5], true_patches[:, 4:5, 4:5]) #+ 0.005 * torch.linalg.norm(z_siren)
+    loss = criterion(glow_patches.squeeze(), true_patches) #+ 0.005 * torch.linalg.norm(z_siren)
+    # loss = criterion(glow_patches.squeeze()[:, 4:5, 4:5], true_patches[:, 4:5, 4:5])
     losses.append(loss.detach().cpu().numpy())
 
     # gradient descent
@@ -204,7 +207,8 @@ for step in range(total_iterations):
                 temp_patches, _ = glow_model.forward_and_log_det(z_summary)
                 summary_patches.append(temp_patches.detach().cpu())
         summary_patches = torch.cat(summary_patches).numpy().reshape(patch_dim, patch_dim, P, P)
-        summary_reconstruction = unpatchify(summary_patches, (N, N))
+        #summary_reconstruction = unpatchify(summary_patches, (N, N))
+        summary_reconstruction = unpatch(summary_patches, stride=1)
 
         summ_writer.add_image(
             'Reconstruction', summary_reconstruction, global_step=step, dataformats='HW'
