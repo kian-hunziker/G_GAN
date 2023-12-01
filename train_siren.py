@@ -40,7 +40,10 @@ class PatchedImage(Dataset):
         # generate 2D coords in range [-1, 1]
         self.coords = get_mgrid(self.patches.shape[0], dim=2)
         # reverse order of y-coords. The top left corner should have coords [-1, 1]
-        self.coords[:, 1] = -1 * self.coords[:, 1]
+        temp_x = 1.0 * self.coords[:, 0]
+        self.coords[:, 0] = 1.0 * self.coords[:, 1]
+        self.coords[:, 1] = 1.0 * temp_x
+        self.coords[:, 1] = -1.0 * self.coords[:, 1]
 
         print(f'coords shape: {self.coords.shape}')
         print(f'patches shape: {self.patches.shape}')
