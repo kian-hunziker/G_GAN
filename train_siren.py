@@ -157,6 +157,7 @@ def save_checkpoint(n_iterations, loss_hist):
         'generator': siren.state_dict(),
         'lr': lr,
         'batch_size': batch_size,
+        'omega_0': first_omega_0,
         'loss_hist': loss_hist
     }
     torch.save(checkpoint, checkpoint_path)
@@ -169,6 +170,7 @@ print('-' * 32)
 print(f'Start training')
 print(f'device: {device}')
 print(f'learning rate: {lr}')
+print(f'omega_0: {first_omega_0}')
 print(f'batch size: {batch_size}')
 print(f'num epochs: {epochs}')
 print('-' * 32 + '\n')
