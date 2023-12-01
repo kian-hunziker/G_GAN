@@ -69,6 +69,9 @@ def reshape_z_for_glow(z_vec, glow_instance):
         z.append(z_temp)
     return z
 
+# fix random seeds
+torch.manual_seed(0)
+np.random.seed(0)
 
 #glow_path = 'trained_models/glow/2023-11-30_13:26:30/checkpoint_100000'
 glow_path = 'trained_models/glow/2023-12-01_09:01:05/checkpoint_12307'
@@ -83,6 +86,7 @@ epochs = 300
 N = 362
 P = 8
 patch_dim = N - P + 1
+first_omega_0 = 100
 
 # Setup data loader
 patched_dataset = PatchedImage(img_path, patch_size=P)
@@ -93,7 +97,12 @@ patched_iter = iter(patched_loader)
 glow_model = load_glow_from_checkpoint(glow_path, device=device, arch='lodopab')
 
 # initialize SIREN and optimizer
-siren = Siren(in_features=2, out_features=64, hidden_features=256, hidden_layers=3, outermost_linear=True).to(device)
+siren = Siren(in_features=2,
+              out_features=64,
+              hidden_features=256,
+              hidden_layers=3,
+              outermost_linear=True,
+              first_omega_0=first_omega_0).to(device)
 optim = torch.optim.Adam(params=siren.parameters(), lr=lr)
 criterion = F.mse_loss
 
@@ -107,7 +116,7 @@ gt_loader = DataLoader(patched_dataset, batch_size=summary_batch_size, shuffle=F
 gt_iter = iter(gt_loader)
 
 losses = []
-step_for_summary_loss = 50
+step_for_summary_loss = 5
 step_for_summary_reconstruction = 100
 step_for_checkpoint = 1000
 
@@ -210,7 +219,10 @@ for step in range(total_iterations):
                 temp_patches, _ = glow_model.forward_and_log_det(z_summary)
                 summary_patches.append(temp_patches.detach().cpu())
         summary_patches = torch.cat(summary_patches).numpy().reshape(patch_dim, patch_dim, P, P)
+        # unpatchify does not use averaging
         #summary_reconstruction = unpatchify(summary_patches, (N, N))
+
+        # use averaging to reconstruct image from overlapping patches
         summary_reconstruction = unpatch(summary_patches, stride=1)
 
         summ_writer.add_image(
