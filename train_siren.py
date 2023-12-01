@@ -1,23 +1,20 @@
 import datetime
+import os
 from sys import platform
 
 import torch
 import numpy as np
 import torch.nn.functional as F
 from torch.utils.data import DataLoader, Dataset
-import torchvision.transforms as transforms
-import os
-
-import matplotlib.pyplot as plt
+from torch.utils.tensorboard import SummaryWriter
 
 from tqdm import tqdm
 import h5py
 from patchify import patchify, unpatchify
-from torch.utils.tensorboard import SummaryWriter
 from math import prod
 
-from utils.siren_mgrid import get_mgrid
 from siren import Siren
+from utils.siren_mgrid import get_mgrid
 from utils.checkpoints import load_glow_from_checkpoint
 from utils.get_device import get_device
 from utils.patcher import unpatch
@@ -45,9 +42,6 @@ class PatchedImage(Dataset):
         self.coords[:, 1] = 1.0 * temp_x
         self.coords[:, 1] = -1.0 * self.coords[:, 1]
 
-        print(f'coords shape: {self.coords.shape}')
-        print(f'patches shape: {self.patches.shape}')
-
     def __len__(self):
         return self.patches.shape[0] * self.patches.shape[1]
 
@@ -74,15 +68,15 @@ def reshape_z_for_glow(z_vec, glow_instance):
 torch.manual_seed(0)
 np.random.seed(0)
 
-glow_path = 'trained_models/glow/2023-11-30_13:26:30/checkpoint_100000'
-#glow_path = 'trained_models/glow/2023-12-01_09:01:05/checkpoint_12307'
+#glow_path = 'trained_models/glow/2023-11-30_13:26:30/checkpoint_100000'
+glow_path = 'trained_models/glow/2023-12-01_09:01:05/checkpoint_12307'
 img_path = 'datasets/LoDoPaB/ground_truth_train/ground_truth_train_000.hdf5'
 
 debug = platform == 'darwin'
 device = get_device(debug)
 
 batch_size = 2048
-lr = 1e-4
+lr = 2e-4
 epochs = 300
 N = 362
 P = 8
@@ -104,7 +98,7 @@ siren = Siren(in_features=2,
               hidden_layers=3,
               outermost_linear=True,
               first_omega_0=first_omega_0).to(device)
-optim = torch.optim.Adam(params=siren.parameters(), lr=lr)
+optim = torch.optim.Adam(params=siren.parameters(), lr=lr, eps=1e-3)
 criterion = F.mse_loss
 
 total_iterations = epochs * len(patched_dataset) // batch_size
