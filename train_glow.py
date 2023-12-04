@@ -54,7 +54,7 @@ dataset, train_loader = get_rotated_mnist_dataloader(root=project_root,
 
 lodopad_path = 'datasets/LoDoPaB/ground_truth_train/ground_truth_train_000.hdf5'
 batch_size = 2048
-num_images = 1
+num_images = 128
 dataset = utils.lodopab_dataset.LodopabDataset(file_path=lodopad_path, patch_size=8, num_images=num_images)
 train_loader = DataLoader(dataset=dataset, batch_size=batch_size, shuffle=True)
 
@@ -68,8 +68,9 @@ log_dir = f'runs/glow/{current_date}'
 summ_writer = SummaryWriter(log_dir)
 
 n_summary_examples = 40
-n_steps_for_summary = 500
-n_steps_for_checkpoint = 10000
+n_steps_for_image_summary = 500
+n_steps_for_loss_summary = 500
+n_steps_for_checkpoint = 100000
 
 # setup for checkpointing and saving trained models
 trained_models_path = f'trained_models/glow'
@@ -113,6 +114,7 @@ print(f'Batch size: {batch_size}')
 print(f'LR: {LR}')
 print(f'WD: {WD}')
 print(f'Number of training images: {num_images}')
+print(f'Length of datased: {len(dataset)}')
 print('\n')
 
 
@@ -135,7 +137,7 @@ for i in tqdm(range(max_iter)):
 
     loss_hist = np.append(loss_hist, loss.detach().to('cpu').numpy())
 
-    if (step < 1000 and step % 10 == 0) or (step % n_steps_for_summary == 0):
+    if (step < 1000 and step % 10 == 0) or (step % n_steps_for_image_summary == 0):
         with torch.no_grad():
             fake, _ = model.sample(num_samples=n_summary_examples, y=None)
             #fake_ = torch.clamp(fake, 0, 1)
@@ -148,9 +150,11 @@ for i in tqdm(range(max_iter)):
             summ_writer.add_image(
                 'Real Patches', img_grid_real, global_step=step
             )
-            summ_writer.add_scalar(
-                'Model Loss', loss, global_step=step
-            )
+
+    if step % n_steps_for_loss_summary == 0:
+        summ_writer.add_scalar(
+            'Model Loss', loss, global_step=step
+        )
 
     if step > 0 and step % n_steps_for_checkpoint == 0:
         save_checkpoint(step, loss_hist)
