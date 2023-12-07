@@ -25,11 +25,11 @@ warnings.simplefilter("ignore", UserWarning)
 
 
 class PatchedImage(Dataset):
-    def __init__(self, im_path, patch_size=8):
+    def __init__(self, img_path: str, img_idx: int = 0, patch_size: int = 8):
         super().__init__()
         # load single image
-        f = h5py.File(im_path)
-        img = f['data'][0]
+        f = h5py.File(img_path)
+        img = f['data'][img_idx]
 
         # generate patches
         self.patches = patchify(img, patch_size=(patch_size, patch_size), step=1)
@@ -62,6 +62,9 @@ def reshape_z_for_glow(z_vec, glow_instance):
         z_temp = z_temp.reshape((curr_batch_size,) + q.shape)
         z.append(z_temp)
     return z
+
+
+description = 'Glow single image, Amsgrad'
 
 
 # fix random seeds
@@ -98,7 +101,7 @@ siren = Siren(in_features=2,
               hidden_layers=3,
               outermost_linear=True,
               first_omega_0=first_omega_0).to(device)
-optim = torch.optim.Adam(params=siren.parameters(), lr=lr)
+optim = torch.optim.Adam(params=siren.parameters(), lr=lr, amsgrad=True)
 criterion = F.mse_loss
 
 total_iterations = epochs * len(patched_dataset) // batch_size
@@ -147,13 +150,13 @@ def save_checkpoint(n_iterations, loss_hist):
     checkpoint_path = f'{trained_models_path}/checkpoint_{n_iterations}'
     checkpoint = {
         'iterations': n_iterations,
-        'gen_arch': 'siren',
-        'disc_arch': '',
-        'generator': siren.state_dict(),
+        'model_arch': 'siren',
+        'model': siren.state_dict(),
         'lr': lr,
         'batch_size': batch_size,
         'omega_0': first_omega_0,
-        'loss_hist': loss_hist
+        'loss_hist': loss_hist,
+        'description': description,
     }
     torch.save(checkpoint, checkpoint_path)
 
@@ -168,6 +171,7 @@ print(f'learning rate: {lr}')
 print(f'omega_0: {first_omega_0}')
 print(f'batch size: {batch_size}')
 print(f'num epochs: {epochs}')
+print(f'description: {description}')
 print('-' * 32 + '\n')
 
 prog_bar = tqdm(total=total_iterations)
