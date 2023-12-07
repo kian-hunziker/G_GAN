@@ -64,7 +64,7 @@ def reshape_z_for_glow(z_vec, glow_instance):
     return z
 
 
-description = 'Glow single image, no amsgrad'
+description = 'Glow single image'
 
 
 # fix random seeds
@@ -75,19 +75,22 @@ np.random.seed(0)
 glow_path = 'trained_models/glow/2023-12-01_09:01:05/checkpoint_12307'
 img_path = 'datasets/LoDoPaB/ground_truth_train/ground_truth_train_000.hdf5'
 
+img_idx = 1
+
 debug = platform == 'darwin'
 device = get_device(debug)
 
 batch_size = 2048
-lr = 1e-4
+lr = 1e-5
 epochs = 300
 N = 362
 P = 8
 patch_dim = N - P + 1
 first_omega_0 = 30
+hidden_features = 512
 
 # Setup data loader
-patched_dataset = PatchedImage(img_path, patch_size=P)
+patched_dataset = PatchedImage(img_path=img_path, img_idx=img_idx, patch_size=P)
 patched_loader = DataLoader(patched_dataset, batch_size=batch_size, shuffle=True)
 patched_iter = iter(patched_loader)
 
@@ -98,11 +101,11 @@ glow_model = load_glow_from_checkpoint(glow_path, device=device, arch='lodopab')
 # initialize SIREN and optimizer
 siren = Siren(in_features=2,
               out_features=64,
-              hidden_features=256,
+              hidden_features=hidden_features,
               hidden_layers=3,
               outermost_linear=True,
               first_omega_0=first_omega_0).to(device)
-optim = torch.optim.Adam(params=siren.parameters(), lr=lr, amsgrad=False)
+optim = torch.optim.Adam(params=siren.parameters(), lr=lr)
 criterion = F.mse_loss
 
 total_iterations = epochs * len(patched_dataset) // batch_size
@@ -131,9 +134,9 @@ for i, (gt_coords, gt_patches) in enumerate(gt_iter):
     all_patches.append(gt_patches)
 
 all_patches = torch.cat(all_patches)
-reconstructed_image = unpatchify(all_patches.numpy().reshape(patch_dim, patch_dim, P, P), (N, N))
+gt_image = unpatchify(all_patches.numpy().reshape(patch_dim, patch_dim, P, P), (N, N))
 summ_writer.add_image(
-    'Ground Truth', reconstructed_image, global_step=0, dataformats='HW'
+    'Ground Truth', gt_image, global_step=0, dataformats='HW'
 )
 
 # setup for checkpointing and saving trained models
@@ -153,10 +156,12 @@ def save_checkpoint(n_iterations, loss_hist):
         'iterations': n_iterations,
         'model_arch': 'siren',
         'model': siren.state_dict(),
+        'hidden_features': hidden_features,
         'lr': lr,
         'batch_size': batch_size,
         'omega_0': first_omega_0,
         'loss_hist': loss_hist,
+        'img_idx': img_idx,
         'description': description,
     }
     torch.save(checkpoint, checkpoint_path)
@@ -168,8 +173,10 @@ def save_checkpoint(n_iterations, loss_hist):
 print('-' * 32)
 print(f'Start training')
 print(f'device: {device}')
+print(f'Training on image with idx: {img_idx}')
 print(f'learning rate: {lr}')
 print(f'omega_0: {first_omega_0}')
+print(f'hidden features: {hidden_features}')
 print(f'batch size: {batch_size}')
 print(f'num epochs: {epochs}')
 print(f'description: {description}')
@@ -211,7 +218,7 @@ for step in range(total_iterations):
         summ_writer.add_scalar(
             'Loss', loss, global_step=step
         )
-    if not debug and step % step_for_summary_reconstruction == 0:
+    if debug: #not debug and step % step_for_summary_reconstruction == 0:
         summary_patches = []
         gt_iter = iter(gt_loader)
         with torch.no_grad():
@@ -226,6 +233,13 @@ for step in range(total_iterations):
 
         # use averaging to reconstruct image from overlapping patches
         summary_reconstruction = unpatch(summary_patches, stride=1)
+
+        with torch.no_grad():
+            reconstruction_loss = F.mse_loss(torch.from_numpy(gt_image), torch.from_numpy(summary_reconstruction))
+
+        summ_writer.add_scalar(
+            'Reconstruction Loss', reconstruction_loss, global_step=step
+        )
 
         summ_writer.add_image(
             'Reconstruction', summary_reconstruction, global_step=step, dataformats='HW'
