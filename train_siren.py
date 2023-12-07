@@ -218,7 +218,7 @@ for step in range(total_iterations):
         summ_writer.add_scalar(
             'Loss', loss, global_step=step
         )
-    if debug: #not debug and step % step_for_summary_reconstruction == 0:
+    if not debug and step % step_for_summary_reconstruction == 0:
         summary_patches = []
         gt_iter = iter(gt_loader)
         with torch.no_grad():
