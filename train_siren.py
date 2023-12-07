@@ -64,7 +64,7 @@ def reshape_z_for_glow(z_vec, glow_instance):
     return z
 
 
-description = 'Glow single image, Amsgrad'
+description = 'Glow single image, no amsgrad'
 
 
 # fix random seeds
@@ -92,6 +92,7 @@ patched_loader = DataLoader(patched_dataset, batch_size=batch_size, shuffle=True
 patched_iter = iter(patched_loader)
 
 # load GLOW model
+print(f'\nLoading GLOW model: \n')
 glow_model = load_glow_from_checkpoint(glow_path, device=device, arch='lodopab')
 
 # initialize SIREN and optimizer
@@ -101,7 +102,7 @@ siren = Siren(in_features=2,
               hidden_layers=3,
               outermost_linear=True,
               first_omega_0=first_omega_0).to(device)
-optim = torch.optim.Adam(params=siren.parameters(), lr=lr, amsgrad=True)
+optim = torch.optim.Adam(params=siren.parameters(), lr=lr, amsgrad=False)
 criterion = F.mse_loss
 
 total_iterations = epochs * len(patched_dataset) // batch_size
