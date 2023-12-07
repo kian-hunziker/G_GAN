@@ -64,7 +64,7 @@ def reshape_z_for_glow(z_vec, glow_instance):
     return z
 
 
-description = 'Glow single image'
+description = 'Glow single image, 4 hidden layers'
 
 
 # fix random seeds
@@ -88,6 +88,7 @@ P = 8
 patch_dim = N - P + 1
 first_omega_0 = 30
 hidden_features = 512
+hidden_layers = 4
 
 # Setup data loader
 patched_dataset = PatchedImage(img_path=img_path, img_idx=img_idx, patch_size=P)
@@ -102,7 +103,7 @@ glow_model = load_glow_from_checkpoint(glow_path, device=device, arch='lodopab')
 siren = Siren(in_features=2,
               out_features=64,
               hidden_features=hidden_features,
-              hidden_layers=3,
+              hidden_layers=hidden_layers,
               outermost_linear=True,
               first_omega_0=first_omega_0).to(device)
 optim = torch.optim.Adam(params=siren.parameters(), lr=lr)
@@ -157,6 +158,7 @@ def save_checkpoint(n_iterations, loss_hist):
         'model_arch': 'siren',
         'model': siren.state_dict(),
         'hidden_features': hidden_features,
+        'hidden_layers': hidden_layers,
         'lr': lr,
         'batch_size': batch_size,
         'omega_0': first_omega_0,
@@ -177,6 +179,7 @@ print(f'Training on image with idx: {img_idx}')
 print(f'learning rate: {lr}')
 print(f'omega_0: {first_omega_0}')
 print(f'hidden features: {hidden_features}')
+print(f'hidden layers: {hidden_layers}')
 print(f'batch size: {batch_size}')
 print(f'num epochs: {epochs}')
 print(f'description: {description}')
