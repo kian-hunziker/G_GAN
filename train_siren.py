@@ -24,7 +24,7 @@ import warnings
 
 warnings.simplefilter("ignore", UserWarning)
 
-description = 'Glow single image, 4 hidden layers'
+description = 'no noise, grid_sample true'
 
 
 # fix random seeds
@@ -35,13 +35,13 @@ np.random.seed(0)
 glow_path = 'trained_models/glow/2023-12-01_09:01:05/checkpoint_12307'
 img_path = 'datasets/LoDoPaB/ground_truth_train/ground_truth_train_000.hdf5'
 
-img_idx = 0
+img_idx = 1
 
 debug = platform == 'darwin'
 device = get_device(debug)
 
 use_grid_sample = True
-noise_strength = 0.1
+noise_strength = 0.0
 
 batch_size = 2048
 lr = 1e-5
