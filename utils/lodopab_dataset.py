@@ -138,7 +138,9 @@ class PatchedImage(Dataset):
 
     def __getitem__(self, idx):
         if self.use_grid_sample is True:
-            coord = 2.0 * (torch.rand(2) - 0.5)
+            #coord = 2.0 * (torch.rand(2) - 0.5)
+            # placeholder to test if training difficulties are caused by continuous patches
+            coord = (torch.randint(0, 362, size=(1, 2)) * 2 / 362 - 1).squeeze()
             patch = self.grid_sample_patch(coord)
             return coord, patch
         else:
