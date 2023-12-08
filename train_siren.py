@@ -17,6 +17,7 @@ from utils.checkpoints import load_glow_from_checkpoint
 from utils.get_device import get_device
 from utils.patcher import unpatch
 from utils.siren_utils import reshape_z_for_glow
+from utils.snr import snr
 
 import warnings
 
@@ -34,10 +35,13 @@ np.random.seed(0)
 glow_path = 'trained_models/glow/2023-12-01_09:01:05/checkpoint_12307'
 img_path = 'datasets/LoDoPaB/ground_truth_train/ground_truth_train_000.hdf5'
 
-img_idx = 1
+img_idx = 0
 
 debug = platform == 'darwin'
 device = get_device(debug)
+
+use_grid_sample = True
+noise_strength = 0.1
 
 batch_size = 2048
 lr = 1e-5
@@ -50,9 +54,13 @@ hidden_features = 512
 hidden_layers = 3
 
 # Setup data loader
-patched_dataset = PatchedImage(img_path=img_path, img_idx=img_idx, patch_size=P)
-patched_loader = DataLoader(patched_dataset, batch_size=batch_size, shuffle=True)
-patched_iter = iter(patched_loader)
+train_dataset = PatchedImage(img_path=img_path,
+                             img_idx=img_idx,
+                             patch_size=P,
+                             noise_strength=noise_strength,
+                             use_grid_sample=use_grid_sample)
+train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
+train_iter = iter(train_loader)
 
 # load GLOW model
 print(f'\nLoading GLOW model: \n')
@@ -68,13 +76,14 @@ siren = Siren(in_features=2,
 optim = torch.optim.Adam(params=siren.parameters(), lr=lr)
 criterion = F.mse_loss
 
-total_iterations = epochs * len(patched_dataset) // batch_size
+total_iterations = epochs * len(train_dataset) // batch_size
 
 # ---------------------------------------------------------------------------------------------------------
 # Setup for summary writer and checkpointing
 # ---------------------------------------------------------------------------------------------------------
 summary_batch_size = 512
-gt_loader = DataLoader(patched_dataset, batch_size=summary_batch_size, shuffle=False)
+gt_dataset = PatchedImage(img_path=img_path, img_idx=img_idx, patch_size=P, noise_strength=0, use_grid_sample=False)
+gt_loader = DataLoader(gt_dataset, batch_size=summary_batch_size, shuffle=False)
 gt_iter = iter(gt_loader)
 
 losses = []
@@ -86,17 +95,19 @@ current_date = datetime.datetime.now().strftime("%Y-%m-%d_%H:%M:%S")
 log_dir = f'runs/siren/{current_date}'
 summ_writer = SummaryWriter(log_dir)
 
-all_patches = []
-gt_iter = iter(gt_loader)
+training_image = unpatch(train_dataset.get_all_coords_and_patches()[-1])
+clean_image = unpatch(gt_dataset.get_all_coords_and_patches()[-1])
 
-# add ground truth image to summary writer
-for i, (gt_coords, gt_patches) in enumerate(gt_iter):
-    all_patches.append(gt_patches)
-
-all_patches = torch.cat(all_patches)
-gt_image = unpatchify(all_patches.numpy().reshape(patch_dim, patch_dim, P, P), (N, N))
 summ_writer.add_image(
-    'Ground Truth', gt_image, global_step=0, dataformats='HW'
+    'Training Image', training_image, global_step=0, dataformats='HW'
+)
+summ_writer.add_image(
+    'Clean Image', clean_image, global_step=0, dataformats='HW'
+)
+
+initial_snr = snr(
+    torch.from_numpy(clean_image).unsqueeze(0).unsqueeze(0),
+    torch.from_numpy(training_image).unsqueeze(0).unsqueeze(0)
 )
 
 # setup for checkpointing and saving trained models
@@ -123,6 +134,8 @@ def save_checkpoint(n_iterations, loss_hist):
         'omega_0': first_omega_0,
         'loss_hist': loss_hist,
         'img_idx': img_idx,
+        'noise_strength': noise_strength,
+        'use_grid_sample': use_grid_sample,
         'description': description,
     }
     torch.save(checkpoint, checkpoint_path)
@@ -141,6 +154,9 @@ print(f'hidden features: {hidden_features}')
 print(f'hidden layers: {hidden_layers}')
 print(f'batch size: {batch_size}')
 print(f'num epochs: {epochs}')
+print(f'noise strength: {noise_strength}')
+print(f'SNR between clean and training image: {initial_snr.detach().item() :.3f}dB')
+print(f'using grid_sample: {use_grid_sample}')
 print(f'description: {description}')
 print('-' * 32 + '\n')
 
@@ -149,10 +165,10 @@ prog_bar = tqdm(total=total_iterations)
 for step in range(total_iterations):
     # get coords in range [-1, 1] and corresponding patches
     try:
-        coords, true_patches = next(patched_iter)
+        coords, true_patches = next(train_iter)
     except StopIteration:
-        patched_iter = iter(patched_loader)
-        coords, true_patches = next(patched_iter)
+        train_iter = iter(train_loader)
+        coords, true_patches = next(train_iter)
     coords = coords.to(device)
     true_patches = true_patches.to(device)
 
@@ -197,10 +213,17 @@ for step in range(total_iterations):
         summary_reconstruction = unpatch(summary_patches, stride=1)
 
         with torch.no_grad():
-            reconstruction_loss = F.mse_loss(torch.from_numpy(gt_image), torch.from_numpy(summary_reconstruction))
+            reconstruction_loss = F.mse_loss(torch.from_numpy(training_image), torch.from_numpy(summary_reconstruction))
+            target = torch.from_numpy(clean_image).unsqueeze(0).unsqueeze(0)
+            approx = torch.from_numpy(summary_reconstruction).unsqueeze(0).unsqueeze(0)
+            current_snr = snr(target, approx)
 
         summ_writer.add_scalar(
             'Reconstruction Loss', reconstruction_loss, global_step=step
+        )
+
+        summ_writer.add_scalar(
+            'SNR', current_snr, global_step=step
         )
 
         summ_writer.add_image(
