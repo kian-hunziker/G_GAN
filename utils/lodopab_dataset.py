@@ -85,7 +85,7 @@ class PatchedImage(Dataset):
         assert img.shape[-1] == img.shape[-2]
 
         # add noise to image
-        img = img + noise_strength * (np.random.randn(img.shape[-2], img.shape[-1]) + 0.5)
+        img = img + noise_strength * (np.random.randn(img.shape[-2], img.shape[-1]).astype(np.single) + 0.5)
         self.img = img
 
         self.use_grid_sample = use_grid_sample
