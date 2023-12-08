@@ -5,64 +5,23 @@ from sys import platform
 import torch
 import numpy as np
 import torch.nn.functional as F
-from torch.utils.data import DataLoader, Dataset
+from torch.utils.data import DataLoader
 from torch.utils.tensorboard import SummaryWriter
 
 from tqdm import tqdm
-import h5py
-from patchify import patchify, unpatchify
-from math import prod
+from patchify import unpatchify
 
 from siren import Siren
-from utils.siren_mgrid import get_mgrid
+from utils.lodopab_dataset import PatchedImage
 from utils.checkpoints import load_glow_from_checkpoint
 from utils.get_device import get_device
 from utils.patcher import unpatch
+from utils.siren_utils import reshape_z_for_glow
 
 import warnings
 
+
 warnings.simplefilter("ignore", UserWarning)
-
-
-class PatchedImage(Dataset):
-    def __init__(self, img_path: str, img_idx: int = 0, patch_size: int = 8):
-        super().__init__()
-        # load single image
-        f = h5py.File(img_path)
-        img = f['data'][img_idx]
-
-        # generate patches
-        self.patches = patchify(img, patch_size=(patch_size, patch_size), step=1)
-
-        # generate 2D coords in range [-1, 1]
-        self.coords = get_mgrid(self.patches.shape[0], dim=2)
-        # reverse order of y-coords. The top left corner should have coords [-1, 1]
-        temp_x = 1.0 * self.coords[:, 0]
-        self.coords[:, 0] = 1.0 * self.coords[:, 1]
-        self.coords[:, 1] = 1.0 * temp_x
-        self.coords[:, 1] = -1.0 * self.coords[:, 1]
-
-    def __len__(self):
-        return self.patches.shape[0] * self.patches.shape[1]
-
-    def __getitem__(self, idx):
-        x_idx = idx // self.patches.shape[0]
-        y_idx = idx % self.patches.shape[1]
-        return self.coords[idx], self.patches[x_idx, y_idx]
-
-
-def reshape_z_for_glow(z_vec, glow_instance):
-    z = []
-    start = 0
-    curr_batch_size = z_vec.shape[0]
-    for q in glow_instance.q0:
-        length = int(prod(q.shape))
-        z_temp = z_vec[:, start:start + length]
-        start += length
-        z_temp = z_temp.reshape((curr_batch_size,) + q.shape)
-        z.append(z_temp)
-    return z
-
 
 description = 'Glow single image, 4 hidden layers'
 
@@ -88,7 +47,7 @@ P = 8
 patch_dim = N - P + 1
 first_omega_0 = 30
 hidden_features = 512
-hidden_layers = 4
+hidden_layers = 3
 
 # Setup data loader
 patched_dataset = PatchedImage(img_path=img_path, img_idx=img_idx, patch_size=P)
