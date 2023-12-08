@@ -104,13 +104,13 @@ class PatchedImage(Dataset):
             # generate patches
             self.patches = patchify(img, patch_size=(patch_size, patch_size), step=1)
 
-            # generate 2D coords in range [-1, 1]
-            self.coords = get_mgrid(self.patches.shape[0], dim=2)
-            # reverse order of y-coords. The top left corner should have coords [-1, 1]
-            temp_x = 1.0 * self.coords[:, 0]
-            self.coords[:, 0] = 1.0 * self.coords[:, 1]
-            self.coords[:, 1] = 1.0 * temp_x
-            self.coords[:, 1] = -1.0 * self.coords[:, 1]
+        # generate 2D coords in range [-1, 1]
+        self.coords = get_mgrid(self.img.shape[-1] - self.patch_size + 1, 2)
+        # reverse order of y-coords. The top left corner should have coords [-1, 1]
+        temp_x = 1.0 * self.coords[:, 0]
+        self.coords[:, 0] = 1.0 * self.coords[:, 1]
+        self.coords[:, 1] = 1.0 * temp_x
+        self.coords[:, 1] = -1.0 * self.coords[:, 1]
 
     def grid_sample_patch(self, coord: torch.Tensor):
         coord_affine = coord * self.coord_range
@@ -140,7 +140,7 @@ class PatchedImage(Dataset):
         if self.use_grid_sample is True:
             #coord = 2.0 * (torch.rand(2) - 0.5)
             # placeholder to test if training difficulties are caused by continuous patches
-            coord = (torch.randint(0, 362, size=(1, 2)) * 2 / 362 - 1).squeeze()
+            coord = self.coords[idx]
             patch = self.grid_sample_patch(coord)
             return coord, patch
         else:
