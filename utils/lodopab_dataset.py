@@ -93,7 +93,7 @@ class PatchedImage(Dataset):
         self.num_patches = (self.img.shape[-2] - self.patch_size + 1) * (self.img.shape[-1] - self.patch_size + 1)
 
         if use_grid_sample is True:
-            self.img = torch.from_numpy(img).unsqueeze(0).unsqueeze(0).type(torch.float)
+            self.img = torch.from_numpy(img).unsqueeze(0).unsqueeze(0).type(torch.float32)
             coord_range_x = (img.shape[-1] - patch_size) / img.shape[-1]
             coord_range_y = (img.shape[-2] - patch_size) / img.shape[-2]
             self.coord_range = torch.tensor([coord_range_x, coord_range_y])
@@ -118,7 +118,7 @@ class PatchedImage(Dataset):
         theta = torch.hstack((self.scale_matrix, coord_affine.unsqueeze(-1))).unsqueeze(0)
         aff_grid = F.affine_grid(theta, [1, 1, self.patch_size, self.patch_size])
         sampled_patch = F.grid_sample(self.img, aff_grid, align_corners=False)
-        return sampled_patch[0]
+        return sampled_patch.squeeze()
 
     def get_all_coords_and_patches(self):
         coords = get_mgrid(self.img.shape[-1] - self.patch_size + 1, 2)
