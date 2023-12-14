@@ -5,9 +5,11 @@ import numpy as np
 import glow_models
 from discriminators import Discriminator
 from generators import Generator
+from siren import Siren
 
 
-def load_gen_disc_from_checkpoint(checkpoint_path, device='cpu', print_to_console=True) -> tuple[Generator, Discriminator]:
+def load_gen_disc_from_checkpoint(checkpoint_path, device='cpu', print_to_console=True) -> tuple[
+    Generator, Discriminator]:
     """
     :param checkpoint_path: complete path of saved checkpoint
     :param device: device to load the networks to
@@ -44,7 +46,7 @@ def load_checkpoint(path: str, device: str | torch.device = 'cpu') -> dict:
 
 def print_checkpoint(checkpoint: dict) -> None:
     for key, value in checkpoint.items():
-        if not isinstance(value, dict):
+        if not isinstance(value, dict) and not isinstance(value, np.ndarray) and not isinstance(value, list):
             key = key + ': ' + '.' * (28 - len(key) - 2)
             print(f'{key : <28} {value}')
     print('\n')
@@ -63,10 +65,42 @@ def load_glow_from_checkpoint(path: str, device: str | torch.device = 'cpu', arc
     model.to(device)
     model.eval()
 
-    for key, value in checkpoint.items():
-        if not isinstance(value, dict) and not isinstance(value, np.ndarray):
-            key = key + ': ' + '.' * (28 - len(key) - 2)
-            print(f'{key : <28} {value}')
-    print('\n')
+    print_checkpoint(checkpoint)
 
     return model
+
+
+def load_siren_from_checkpoint(path: str, device: str | torch.device = 'cpu'):
+    checkpoint = torch.load(path, map_location=device)
+
+    try:
+        hidden_features = checkpoint['hidden_features']
+    except KeyError:
+        hidden_features = 256
+
+    try:
+        hidden_layers = checkpoint['hidden_layers']
+    except KeyError:
+        hidden_layers = 3
+
+    try:
+        first_omega_0 = checkpoint['omega_0']
+    except KeyError:
+        first_omega_0 = 30
+
+    siren = Siren(in_features=2,
+                  out_features=64,
+                  hidden_features=hidden_features,
+                  hidden_layers=hidden_layers,
+                  outermost_linear=True,
+                  first_omega_0=first_omega_0).to(device)
+    siren.load_state_dict(checkpoint['model'])
+    siren.eval()
+
+    print(f'LOADING SIREN FROM {path}')
+    print_checkpoint(checkpoint)
+
+    return siren
+
+
+
