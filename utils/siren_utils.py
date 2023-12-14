@@ -13,6 +13,15 @@ def get_mgrid(sidelen, dim=2):
     return mgrid
 
 
+def get_transposed_mgrid(side_length: int, dim: int =2):
+    coords = get_mgrid(side_length, dim)
+    temp_x = 1.0 * coords[:, 0]
+    coords[:, 0] = 1.0 * coords[:, 1]
+    coords[:, 1] = 1.0 * temp_x
+    coords[:, 1] = -1.0 * coords[:, 1]
+    return coords
+
+
 def reshape_z_for_glow(z_vec, glow_instance):
     """
     Reshape latent vector z from vector representation to input format for GLOW model
