@@ -1,4 +1,5 @@
 import os
+from sys import platform
 
 import torch
 import torchvision
@@ -20,7 +21,7 @@ warnings.simplefilter("ignore", UserWarning)
 
 torch.manual_seed(0)
 
-debug = False
+debug = platform == 'darwin'
 device = get_device(debug)
 project_root = os.getcwd()
 
@@ -54,8 +55,12 @@ dataset, train_loader = get_rotated_mnist_dataloader(root=project_root,
 
 lodopad_path = 'datasets/LoDoPaB/ground_truth_train/ground_truth_train_000.hdf5'
 batch_size = 2048
-num_images = 128
-dataset = utils.lodopab_dataset.LodopabDataset(file_path=lodopad_path, patch_size=8, num_images=num_images)
+num_images = 1
+use_grid_sample = True
+dataset = utils.lodopab_dataset.LodopabDataset(file_path=lodopad_path,
+                                               patch_size=8,
+                                               num_images=num_images,
+                                               use_grid_sample=use_grid_sample)
 train_loader = DataLoader(dataset=dataset, batch_size=batch_size, shuffle=True)
 
 train_iter = iter(train_loader)
@@ -93,6 +98,7 @@ def save_checkpoint(n_iterations, loss_hist):
         'lr': LR,
         'wd': WD,
         'num_images': num_images,
+        'use_grid_sample': use_grid_sample,
         'loss_hist': loss_hist,
     }
     torch.save(checkpoint, checkpoint_path)
@@ -114,7 +120,9 @@ print(f'Batch size: {batch_size}')
 print(f'LR: {LR}')
 print(f'WD: {WD}')
 print(f'Number of training images: {num_images}')
-print(f'Length of datased: {len(dataset)}')
+print(f'Grid sampling: {use_grid_sample}')
+if not use_grid_sample:
+    print(f'Length of dataset: {len(dataset)}')
 print('\n')
 
 
