@@ -55,7 +55,7 @@ dataset, train_loader = get_rotated_mnist_dataloader(root=project_root,
 
 lodopad_path = 'datasets/LoDoPaB/ground_truth_train/ground_truth_train_000.hdf5'
 batch_size = 2048
-num_images = 1
+num_images = 6
 use_grid_sample = True
 dataset = utils.lodopab_dataset.LodopabDataset(file_path=lodopad_path,
                                                patch_size=8,
@@ -73,7 +73,7 @@ log_dir = f'runs/glow/{current_date}'
 summ_writer = SummaryWriter(log_dir)
 
 n_summary_examples = 40
-n_steps_for_image_summary = 20000
+n_steps_for_image_summary = 1000
 n_steps_for_loss_summary = 500
 n_steps_for_checkpoint = 10000
 
@@ -159,7 +159,7 @@ for i in tqdm(range(max_iter)):
                 'Real Patches', img_grid_real, global_step=step
             )
 
-    if step % n_steps_for_loss_summary == 0:
+    if (step < 1000 and step % 10 == 0) or (step % n_steps_for_loss_summary == 0):
         summ_writer.add_scalar(
             'Model Loss', loss, global_step=step
         )
