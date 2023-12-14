@@ -73,9 +73,9 @@ log_dir = f'runs/glow/{current_date}'
 summ_writer = SummaryWriter(log_dir)
 
 n_summary_examples = 40
-n_steps_for_image_summary = 500
+n_steps_for_image_summary = 20000
 n_steps_for_loss_summary = 500
-n_steps_for_checkpoint = 100000
+n_steps_for_checkpoint = 10000
 
 # setup for checkpointing and saving trained models
 trained_models_path = f'trained_models/glow'
@@ -108,7 +108,7 @@ def save_checkpoint(n_iterations, loss_hist):
 # Train model
 # ---------------------------------------------------------------------------------------------------------
 
-epochs = 200
+epochs = 1000
 max_iter = int(epochs * len(dataset) / batch_size)
 step = 0
 
