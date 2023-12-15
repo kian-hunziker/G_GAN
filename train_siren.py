@@ -32,10 +32,11 @@ torch.manual_seed(0)
 np.random.seed(0)
 
 #glow_path = 'trained_models/glow/2023-11-30_13:26:30/checkpoint_100000'
-glow_path = 'trained_models/glow/2023-12-01_09:01:05/checkpoint_12307'
+#glow_path = 'trained_models/glow/2023-12-01_09:01:05/checkpoint_12307'
+glow_path = 'trained_models/glow/2023-12-14_18:30:19/checkpoint_61535'
 img_path = 'datasets/LoDoPaB/ground_truth_train/ground_truth_train_000.hdf5'
 
-img_idx = 1
+img_idx = 0
 
 debug = platform == 'darwin'
 device = get_device(debug)
@@ -58,7 +59,8 @@ train_dataset = PatchedImage(img_path=img_path,
                              img_idx=img_idx,
                              patch_size=P,
                              noise_strength=noise_strength,
-                             use_grid_sample=use_grid_sample)
+                             use_grid_sample=use_grid_sample,
+                             normalize=True)
 train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
 train_iter = iter(train_loader)
 
