@@ -42,6 +42,7 @@ debug = platform == 'darwin'
 device = get_device(debug)
 
 use_grid_sample = True
+normalize = True
 noise_strength = 0.0
 
 batch_size = 2048
@@ -60,7 +61,7 @@ train_dataset = PatchedImage(img_path=img_path,
                              patch_size=P,
                              noise_strength=noise_strength,
                              use_grid_sample=use_grid_sample,
-                             normalize=True)
+                             normalize=normalize)
 train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
 train_iter = iter(train_loader)
 
@@ -84,7 +85,12 @@ total_iterations = epochs * len(train_dataset) // batch_size
 # Setup for summary writer and checkpointing
 # ---------------------------------------------------------------------------------------------------------
 summary_batch_size = 512
-gt_dataset = PatchedImage(img_path=img_path, img_idx=img_idx, patch_size=P, noise_strength=0, use_grid_sample=False)
+gt_dataset = PatchedImage(img_path=img_path,
+                          img_idx=img_idx,
+                          patch_size=P,
+                          noise_strength=0,
+                          use_grid_sample=False,
+                          normalize=normalize)
 gt_loader = DataLoader(gt_dataset, batch_size=summary_batch_size, shuffle=False)
 gt_iter = iter(gt_loader)
 
