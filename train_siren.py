@@ -24,7 +24,7 @@ import warnings
 
 warnings.simplefilter("ignore", UserWarning)
 
-description = 'no noise, grid_sample true'
+description = 'z2 loss on z experiment'
 
 
 # fix random seeds
@@ -47,6 +47,7 @@ noise_strength = 0.0
 
 batch_size = 2048
 lr = 1e-5
+l2_lambda = 0.005
 epochs = 300
 N = 362
 P = 8
@@ -67,6 +68,7 @@ train_iter = iter(train_loader)
 
 # load GLOW model
 print(f'\nLoading GLOW model: \n')
+print(f'path: {glow_path}')
 glow_model = load_glow_from_checkpoint(glow_path, device=device, arch='lodopab')
 
 # initialize SIREN and optimizer
@@ -138,6 +140,7 @@ def save_checkpoint(n_iterations, loss_hist):
         'hidden_features': hidden_features,
         'hidden_layers': hidden_layers,
         'lr': lr,
+        'l2_lambda': l2_lambda,
         'batch_size': batch_size,
         'omega_0': first_omega_0,
         'loss_hist': loss_hist,
@@ -157,6 +160,7 @@ print(f'Start training')
 print(f'device: {device}')
 print(f'Training on image with idx: {img_idx}')
 print(f'learning rate: {lr}')
+print(f'L2 lambda: {l2_lambda}')
 print(f'omega_0: {first_omega_0}')
 print(f'hidden features: {hidden_features}')
 print(f'hidden layers: {hidden_layers}')
@@ -190,7 +194,12 @@ for step in range(total_iterations):
     glow_patches, _ = glow_model.forward_and_log_det(z)
 
     # compute MSE loss
-    loss = criterion(glow_patches.squeeze(), true_patches) #TODO + 0.005 * torch.linalg.norm(z_siren)**2
+    z_l2_loss = l2_lambda * torch.mean(torch.linalg.norm(z_siren, dim=1) ** 2)
+    print(f'z_l2_loss: {z_l2_loss}')
+    mse_loss = criterion(glow_patches.squeeze(), true_patches)
+    print(f'mse_loss: {mse_loss}')
+    loss = mse_loss + z_l2_loss
+    #TODO + 0.005 * torch.linalg.norm(z_siren)**2
     # loss = criterion(glow_patches.squeeze()[:, 4:5, 4:5], true_patches[:, 4:5, 4:5]) #+ 0.005 * torch.linalg.norm(z_siren)
     losses.append(loss.detach().cpu().numpy())
 
@@ -203,6 +212,12 @@ for step in range(total_iterations):
     if step % step_for_summary_loss == 0:
         summ_writer.add_scalar(
             'Loss', loss, global_step=step
+        )
+        summ_writer.add_scalar(
+            'MSE loss', mse_loss, global_step=step
+        )
+        summ_writer.add_scalar(
+            'L2 loss z', z_l2_loss, global_step=step
         )
     if not debug and step % step_for_summary_reconstruction == 0:
         summary_patches = []
