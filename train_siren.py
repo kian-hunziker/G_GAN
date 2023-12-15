@@ -195,9 +195,7 @@ for step in range(total_iterations):
 
     # compute MSE loss
     z_l2_loss = l2_lambda * torch.mean(torch.linalg.norm(z_siren, dim=1) ** 2)
-    print(f'z_l2_loss: {z_l2_loss}')
     mse_loss = criterion(glow_patches.squeeze(), true_patches)
-    print(f'mse_loss: {mse_loss}')
     loss = mse_loss + z_l2_loss
     #TODO + 0.005 * torch.linalg.norm(z_siren)**2
     # loss = criterion(glow_patches.squeeze()[:, 4:5, 4:5], true_patches[:, 4:5, 4:5]) #+ 0.005 * torch.linalg.norm(z_siren)
