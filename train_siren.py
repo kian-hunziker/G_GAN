@@ -196,7 +196,6 @@ for step in range(total_iterations):
 
     # generate patches from z by passing latent vector to generative glow model
     glow_patches, _ = glow_model.forward_and_log_det(z)
-    glow_patches = torch.nan_to_num(glow_patches, nan=1)
 
     # compute MSE loss
     z_l2_loss = l2_lambda * torch.mean(torch.linalg.norm(z_siren, dim=1) ** 2)
