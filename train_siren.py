@@ -24,7 +24,7 @@ import warnings
 
 warnings.simplefilter("ignore", UserWarning)
 
-description = 'z2 loss on z experiment'
+description = 'unnormalized baseline for debugging'
 
 
 # fix random seeds
@@ -32,8 +32,11 @@ torch.manual_seed(0)
 np.random.seed(0)
 
 #glow_path = 'trained_models/glow/2023-11-30_13:26:30/checkpoint_100000'
-#glow_path = 'trained_models/glow/2023-12-01_09:01:05/checkpoint_12307'
-glow_path = 'trained_models/glow/2023-12-14_18:30:19/checkpoint_61535'
+# unnormalized, trained on one image
+glow_path = 'trained_models/glow/2023-12-01_09:01:05/checkpoint_12307'
+
+# normalized, trained on one image
+#glow_path = 'trained_models/glow/2023-12-14_18:30:19/checkpoint_61535'
 img_path = 'datasets/LoDoPaB/ground_truth_train/ground_truth_train_000.hdf5'
 
 img_idx = 0
@@ -42,12 +45,13 @@ debug = platform == 'darwin'
 device = get_device(debug)
 
 use_grid_sample = True
-normalize = True
+normalize = False
 noise_strength = 0.0
 
 batch_size = 2048
+#TODO reduce batch size to avoid NaN
 lr = 1e-5
-l2_lambda = 0.005
+l2_lambda = 0.000
 epochs = 300
 N = 362
 P = 8
