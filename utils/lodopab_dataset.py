@@ -103,7 +103,7 @@ class LodopabDataset(torch.utils.data.Dataset):
             img_idx = random.randint(0, self.num_images - 1)
 
             # generate random coordinates and scale them
-            coords = torch.rand(2) * self.coord_range
+            coords = 2.0 * (torch.rand(2) - 0.5) * self.coord_range
 
             # define input affine matrix [1 x 2 x 3]
             theta = torch.hstack((self.scale_matrix, coords.unsqueeze(-1))).unsqueeze(0)
