@@ -196,11 +196,30 @@ for step in range(total_iterations):
 
     # generate patches from z by passing latent vector to generative glow model
     glow_patches, _ = glow_model.forward_and_log_det(z)
+    glow_patches = torch.nan_to_num(glow_patches, nan=1)
 
     # compute MSE loss
     z_l2_loss = l2_lambda * torch.mean(torch.linalg.norm(z_siren, dim=1) ** 2)
+
+    if torch.sum(torch.isnan(glow_patches)) > 1:
+        print(f'Nan values in glow_patches')
+        break
+    if torch.sum(torch.isnan(true_patches)) > 1:
+        print(f'Nan values in true patches')
+        break
+
     mse_loss = criterion(glow_patches.squeeze(), true_patches)
+
+    if torch.sum(torch.isnan(mse_loss)) > 1:
+        print(f'Nan values in MSE loss')
+        break
+
     loss = mse_loss + z_l2_loss
+
+    if torch.sum(torch.isnan(loss)) > 1:
+        print(f'Nan values in loss')
+        break
+
     #TODO + 0.005 * torch.linalg.norm(z_siren)**2
     # loss = criterion(glow_patches.squeeze()[:, 4:5, 4:5], true_patches[:, 4:5, 4:5]) #+ 0.005 * torch.linalg.norm(z_siren)
     losses.append(loss.detach().cpu().numpy())
