@@ -164,8 +164,9 @@ class PatchedImage(Dataset):
 
         if use_grid_sample is True:
             self.img = torch.from_numpy(img).unsqueeze(0).unsqueeze(0).type(torch.float32)
-            coord_range_x = (img.shape[-1] - patch_size) / img.shape[-1]
-            coord_range_y = (img.shape[-2] - patch_size) / img.shape[-2]
+            # TODO fix hard coded patch size 8
+            coord_range_x = (img.shape[-1] - 8) / img.shape[-1]
+            coord_range_y = (img.shape[-2] - 8) / img.shape[-2]
             self.coord_range = torch.tensor([coord_range_x, coord_range_y])
             scale_width = patch_size / img.shape[-1]
             scale_height = patch_size / img.shape[-2]
