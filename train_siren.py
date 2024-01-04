@@ -23,7 +23,7 @@ import warnings
 
 warnings.simplefilter("ignore", UserWarning)
 
-description = 'unnormalized baseline for debugging'
+description = 'aggregate batches'
 
 # fix random seeds
 torch.manual_seed(0)
@@ -232,6 +232,9 @@ print(f'final loss after pretraining: {loss.detach().item()}')
 print('\n')
 
 prog_bar = tqdm(total=total_iterations)
+pix_values = []
+true_pixels = []
+z2_losses = []
 
 for step in range(total_iterations):
     # get coords in range [-1, 1] and corresponding patches
@@ -265,25 +268,40 @@ for step in range(total_iterations):
         break
 
     # compute loss
-    z_l2_loss = l2_lambda * torch.mean(torch.linalg.norm(z_siren, dim=1) ** 2)
     if use_averaged_pixel_values is True:
         pixel_values = compute_averaged_pixel_value(glow_patches).to(device)
-        mse_loss = criterion(pixel_values, true_patches)
+        pix_values.append(pixel_values)
+        true_pixels.append(true_patches)
+        z_l2_loss = l2_lambda * torch.mean(torch.linalg.norm(z_siren, dim=1) ** 2)
+        z2_losses.append(z_l2_loss)
+        with torch.no_grad():
+            mse_loss = criterion(pixel_values, true_patches)
+        if step > 0 and step % 4 == 0:
+            pix_values = torch.cat(pix_values)
+            true_pixels = torch.cat(true_pixels)
+            z_l2_loss = torch.mean(torch.stack(z2_losses))
+
+            mse_loss = criterion(pix_values, true_pixels)
+            loss = mse_loss + z_l2_loss
+
+            # gradient descent
+            optim.zero_grad()
+            loss.backward()
+            optim.step()
+
+            pix_values = []
+            true_pixels = []
+            z2_losses = []
     else:
+        z_l2_loss = l2_lambda * torch.mean(torch.linalg.norm(z_siren, dim=1) ** 2)
         mse_loss = criterion(glow_patches.squeeze(), true_patches)
+        loss = mse_loss + z_l2_loss
+        losses.append(loss.detach().cpu().numpy())
 
-    loss = mse_loss + z_l2_loss
-
-    if torch.sum(torch.isnan(loss)) > 1:
-        print(f'Nan values in loss')
-        break
-
-    losses.append(loss.detach().cpu().numpy())
-
-    # gradient descent
-    optim.zero_grad()
-    loss.backward()
-    optim.step()
+        # gradient descent
+        optim.zero_grad()
+        loss.backward()
+        optim.step()
 
     # summary
     if step % step_for_summary_loss == 0:
