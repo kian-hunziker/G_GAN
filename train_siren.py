@@ -21,19 +21,17 @@ from utils.snr import snr
 
 import warnings
 
-
 warnings.simplefilter("ignore", UserWarning)
 
 description = 'unnormalized baseline for debugging'
-
 
 # fix random seeds
 torch.manual_seed(0)
 np.random.seed(0)
 
-#glow_path = 'trained_models/glow/2023-11-30_13:26:30/checkpoint_100000'
+# glow_path = 'trained_models/glow/2023-11-30_13:26:30/checkpoint_100000'
 # unnormalized, trained on one image
-#glow_path = 'trained_models/glow/2023-12-01_09:01:05/checkpoint_12307'
+# glow_path = 'trained_models/glow/2023-12-01_09:01:05/checkpoint_12307'
 
 # normalized, trained on one image
 glow_path = 'trained_models/glow/2023-12-28_14:15:34/checkpoint_20000'
@@ -46,10 +44,11 @@ device = get_device(debug)
 
 use_grid_sample = True
 normalize = True
+use_averaged_pixel_values = True
 noise_strength = 0.0
 
-batch_size = 2048
-#TODO reduce batch size to avoid NaN
+batch_size = 32
+# TODO reduce batch size to avoid NaN
 lr = 1e-5
 l2_lambda = 0.000
 epochs = 300
@@ -63,7 +62,7 @@ hidden_layers = 3
 # Setup data loader
 train_dataset = PatchedImage(img_path=img_path,
                              img_idx=img_idx,
-                             patch_size=P,
+                             patch_size=P if use_averaged_pixel_values is False else 1,
                              noise_strength=noise_strength,
                              use_grid_sample=use_grid_sample,
                              normalize=normalize)
@@ -156,6 +155,46 @@ def save_checkpoint(n_iterations, loss_hist):
     torch.save(checkpoint, checkpoint_path)
 
 
+pixel_offset = 2.0 / N / train_dataset.coord_range
+k = [-3.5, -2.5, -1.5, -0.5, 0.5, 1.5, 2.5, 3.5]
+
+
+def get_coords_average_patching(coordinates: torch.Tensor) -> torch.Tensor:
+    """
+    For each (x, y) coordinate in coords, we create coordinates for 64 overlapping patches. They each
+    overlap by one pixel.
+    :param coordinates: Tensor containing 2D coordinates between [-1, 1] for both x and y. Dim: [batch_size, 2]
+    :return: Expanded coordinates. dim: [64 * batch_size, 2]
+    """
+    all_coordinates = []
+    for i in range(coordinates.shape[0]):
+        coord_list = []
+        for k_1 in k:
+            for k_2 in k:
+                c = coordinates[i] + pixel_offset * torch.tensor([k_2, -k_1])
+                coord_list.append(c)
+        all_coordinates.append(torch.stack(coord_list))
+    return torch.cat(all_coordinates)
+
+
+def compute_averaged_pixel_value(patches: torch.Tensor):
+    patches = patches.squeeze()
+    x_range = [7, 6, 5, 4, 3, 2, 1, 0]
+    num_pixels = int(patches.shape[0] / 64)
+    averaged_pixels = torch.zeros(num_pixels)
+
+    idx = 0
+    for i in range(num_pixels):
+        pix = 0.0
+        for col in x_range:
+            for row in x_range:
+                inc = patches[idx][col, row].item()
+                pix += inc
+                idx += 1
+        averaged_pixels[i] = pix / 64.0
+    return averaged_pixels
+
+
 # ---------------------------------------------------------------------------------------------------------
 # Train SIREN
 # ---------------------------------------------------------------------------------------------------------
@@ -176,6 +215,20 @@ print(f'using grid_sample: {use_grid_sample}')
 print(f'description: {description}')
 print('-' * 32 + '\n')
 
+zero_train_iterations = 200
+zero_optim = torch.optim.Adam(params=siren.parameters(), lr=1e-4)
+for i in range(zero_train_iterations):
+    coords = 2.0 * (torch.rand((64, 2)) - 0.5)
+    coords = coords.to(device)
+    out, _ = siren(coords)
+    gt = torch.zeros_like(out)
+    loss = criterion(out, gt)
+    zero_optim.zero_grad()
+    loss.backward()
+    print(f'zero loss: {loss.detach().item()}')
+    zero_optim.step()
+
+
 prog_bar = tqdm(total=total_iterations)
 
 for step in range(total_iterations):
@@ -185,7 +238,12 @@ for step in range(total_iterations):
     except StopIteration:
         train_iter = iter(train_loader)
         coords, true_patches = next(train_iter)
-    coords = coords.to(device)
+
+    if use_averaged_pixel_values is True:
+        coords = get_coords_average_patching(coords).to(device)
+    else:
+        coords = coords.to(device)
+
     true_patches = true_patches.to(device)
 
     # pass coords through siren to get proposed latent vector z_siren
@@ -197,9 +255,6 @@ for step in range(total_iterations):
     # generate patches from z by passing latent vector to generative glow model
     glow_patches, _ = glow_model.forward_and_log_det(z)
 
-    # compute MSE loss
-    z_l2_loss = l2_lambda * torch.mean(torch.linalg.norm(z_siren, dim=1) ** 2)
-
     if torch.sum(torch.isnan(glow_patches)) > 1:
         print(f'Nan values in glow_patches')
         break
@@ -207,11 +262,16 @@ for step in range(total_iterations):
         print(f'Nan values in true patches')
         break
 
-    mse_loss = criterion(glow_patches.squeeze(), true_patches)
+    # compute loss
 
-    if torch.sum(torch.isnan(mse_loss)) > 1:
-        print(f'Nan values in MSE loss')
-        break
+    z_l2_loss = l2_lambda * torch.mean(torch.linalg.norm(z_siren, dim=1) ** 2)
+    if use_averaged_pixel_values is True:
+        pixel_values = compute_averaged_pixel_value(glow_patches)
+        mse_loss = criterion(pixel_values, true_patches)
+    else:
+        mse_loss = criterion(glow_patches.squeeze(), true_patches)
+
+
 
     loss = mse_loss + z_l2_loss
 
@@ -219,7 +279,7 @@ for step in range(total_iterations):
         print(f'Nan values in loss')
         break
 
-    #TODO + 0.005 * torch.linalg.norm(z_siren)**2
+    # TODO + 0.005 * torch.linalg.norm(z_siren)**2
     # loss = criterion(glow_patches.squeeze()[:, 4:5, 4:5], true_patches[:, 4:5, 4:5]) #+ 0.005 * torch.linalg.norm(z_siren)
     losses.append(loss.detach().cpu().numpy())
 
@@ -250,7 +310,7 @@ for step in range(total_iterations):
                 summary_patches.append(temp_patches.detach().cpu())
         summary_patches = torch.cat(summary_patches).numpy().reshape(patch_dim, patch_dim, P, P)
         # unpatchify does not use averaging
-        #summary_reconstruction = unpatchify(summary_patches, (N, N))
+        # summary_reconstruction = unpatchify(summary_patches, (N, N))
 
         # use averaging to reconstruct image from overlapping patches
         summary_reconstruction = unpatch(summary_patches, stride=1)
