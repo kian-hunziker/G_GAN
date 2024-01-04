@@ -34,7 +34,7 @@ np.random.seed(0)
 # glow_path = 'trained_models/glow/2023-12-01_09:01:05/checkpoint_12307'
 
 # normalized, trained on one image
-glow_path = 'trained_models/glow/2023-12-28_14:15:34/checkpoint_246142'
+glow_path = 'trained_models/glow/2023-12-28_14:18:23/checkpoint_280000'
 img_path = 'datasets/LoDoPaB/ground_truth_train/ground_truth_train_000.hdf5'
 
 img_idx = 0
@@ -49,7 +49,7 @@ noise_strength = 0.0
 
 batch_size = 32
 lr = 1e-5
-l2_lambda = 0.000
+l2_lambda = 0.0001
 epochs = 300
 N = 362
 P = 8
@@ -155,7 +155,8 @@ def save_checkpoint(n_iterations, loss_hist):
 
 
 pixel_offset = 2.0 / N / train_dataset.coord_range
-k = [-3.5,  -1.5,  0.5,  2.5]
+#k = [-3.5,  -1.5,  0.5,  2.5]
+k = [-3.5, -2.5, -1.5, -0.5, 0.5, 1.5, 2.5, 3.5]
 
 
 def get_coords_average_patching(coordinates: torch.Tensor) -> torch.Tensor:
@@ -178,7 +179,8 @@ def get_coords_average_patching(coordinates: torch.Tensor) -> torch.Tensor:
 
 def compute_averaged_pixel_value(patches: torch.Tensor):
     patches = patches.squeeze()
-    x_range = [7,  5,  3,  1]
+    #x_range = [7,  5,  3,  1]
+    x_range = [7, 6, 5, 4, 3, 2, 1, 0]
     num_pixels = int(patches.shape[0] / len(x_range)**2)
     averaged_pixels = torch.zeros(num_pixels)
 
