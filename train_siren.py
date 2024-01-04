@@ -23,7 +23,7 @@ import warnings
 
 warnings.simplefilter("ignore", UserWarning)
 
-description = 'aggregate batches'
+description = 'fewer averaged patches'
 
 # fix random seeds
 torch.manual_seed(0)
@@ -155,7 +155,7 @@ def save_checkpoint(n_iterations, loss_hist):
 
 
 pixel_offset = 2.0 / N / train_dataset.coord_range
-k = [-3.5, -2.5, -1.5, -0.5, 0.5, 1.5, 2.5, 3.5]
+k = [-3.5,  -1.5,  0.5,  2.5]
 
 
 def get_coords_average_patching(coordinates: torch.Tensor) -> torch.Tensor:
@@ -178,8 +178,8 @@ def get_coords_average_patching(coordinates: torch.Tensor) -> torch.Tensor:
 
 def compute_averaged_pixel_value(patches: torch.Tensor):
     patches = patches.squeeze()
-    x_range = [7, 6, 5, 4, 3, 2, 1, 0]
-    num_pixels = int(patches.shape[0] / 64)
+    x_range = [7,  5,  3,  1]
+    num_pixels = int(patches.shape[0] / len(x_range)**2)
     averaged_pixels = torch.zeros(num_pixels)
 
     idx = 0
@@ -190,7 +190,7 @@ def compute_averaged_pixel_value(patches: torch.Tensor):
                 inc = patches[idx][col, row]  # .item()
                 pix += inc
                 idx += 1
-        averaged_pixels[i] = pix / 64.0
+        averaged_pixels[i] = pix / len(x_range)**2
     return averaged_pixels
 
 
@@ -232,9 +232,6 @@ print(f'final loss after pretraining: {loss.detach().item()}')
 print('\n')
 
 prog_bar = tqdm(total=total_iterations)
-pix_values = []
-true_pixels = []
-z2_losses = []
 
 for step in range(total_iterations):
     # get coords in range [-1, 1] and corresponding patches
@@ -268,40 +265,20 @@ for step in range(total_iterations):
         break
 
     # compute loss
+    z_l2_loss = l2_lambda * torch.mean(torch.linalg.norm(z_siren, dim=1) ** 2)
     if use_averaged_pixel_values is True:
         pixel_values = compute_averaged_pixel_value(glow_patches).to(device)
-        pix_values.append(pixel_values)
-        true_pixels.append(true_patches)
-        z_l2_loss = l2_lambda * torch.mean(torch.linalg.norm(z_siren, dim=1) ** 2)
-        z2_losses.append(z_l2_loss)
-        with torch.no_grad():
-            mse_loss = criterion(pixel_values, true_patches)
-        if step > 0 and step % 4 == 0:
-            pix_values = torch.cat(pix_values)
-            true_pixels = torch.cat(true_pixels)
-            z_l2_loss = torch.mean(torch.stack(z2_losses))
-
-            mse_loss = criterion(pix_values, true_pixels)
-            loss = mse_loss + z_l2_loss
-
-            # gradient descent
-            optim.zero_grad()
-            loss.backward()
-            optim.step()
-
-            pix_values = []
-            true_pixels = []
-            z2_losses = []
+        mse_loss = criterion(pixel_values, true_patches)
     else:
-        z_l2_loss = l2_lambda * torch.mean(torch.linalg.norm(z_siren, dim=1) ** 2)
         mse_loss = criterion(glow_patches.squeeze(), true_patches)
-        loss = mse_loss + z_l2_loss
-        losses.append(loss.detach().cpu().numpy())
 
-        # gradient descent
-        optim.zero_grad()
-        loss.backward()
-        optim.step()
+    loss = mse_loss + z_l2_loss
+    losses.append(loss.detach().cpu().numpy())
+
+    # gradient descent
+    optim.zero_grad()
+    loss.backward()
+    optim.step()
 
     # summary
     if step % step_for_summary_loss == 0:
