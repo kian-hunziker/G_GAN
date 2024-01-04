@@ -202,6 +202,7 @@ print('-' * 32)
 print(f'Start training')
 print(f'device: {device}')
 print(f'Training on image with idx: {img_idx}')
+print(f'Using averaged pixel values: {use_averaged_pixel_values}')
 print(f'learning rate: {lr}')
 print(f'L2 lambda: {l2_lambda}')
 print(f'omega_0: {first_omega_0}')
@@ -225,9 +226,11 @@ for i in range(zero_train_iterations):
     loss = criterion(out, gt)
     zero_optim.zero_grad()
     loss.backward()
-    print(f'zero loss: {loss.detach().item()}')
     zero_optim.step()
 
+print('\n')
+print(f'final loss after pretraining: {loss.detach().item()}')
+print('\n')
 
 prog_bar = tqdm(total=total_iterations)
 
