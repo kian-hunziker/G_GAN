@@ -34,7 +34,7 @@ np.random.seed(0)
 # glow_path = 'trained_models/glow/2023-12-01_09:01:05/checkpoint_12307'
 
 # normalized, trained on one image
-glow_path = 'trained_models/glow/2023-12-28_14:15:34/checkpoint_20000'
+glow_path = 'trained_models/glow/2023-12-28_14:15:34/checkpoint_246142'
 img_path = 'datasets/LoDoPaB/ground_truth_train/ground_truth_train_000.hdf5'
 
 img_idx = 0
@@ -48,7 +48,6 @@ use_averaged_pixel_values = True
 noise_strength = 0.0
 
 batch_size = 32
-# TODO reduce batch size to avoid NaN
 lr = 1e-5
 l2_lambda = 0.000
 epochs = 300
@@ -188,7 +187,7 @@ def compute_averaged_pixel_value(patches: torch.Tensor):
         pix = 0.0
         for col in x_range:
             for row in x_range:
-                inc = patches[idx][col, row].item()
+                inc = patches[idx][col, row]  # .item()
                 pix += inc
                 idx += 1
         averaged_pixels[i] = pix / 64.0
@@ -266,15 +265,12 @@ for step in range(total_iterations):
         break
 
     # compute loss
-
     z_l2_loss = l2_lambda * torch.mean(torch.linalg.norm(z_siren, dim=1) ** 2)
     if use_averaged_pixel_values is True:
-        pixel_values = compute_averaged_pixel_value(glow_patches)
+        pixel_values = compute_averaged_pixel_value(glow_patches).to(device)
         mse_loss = criterion(pixel_values, true_patches)
     else:
         mse_loss = criterion(glow_patches.squeeze(), true_patches)
-
-
 
     loss = mse_loss + z_l2_loss
 
@@ -282,8 +278,6 @@ for step in range(total_iterations):
         print(f'Nan values in loss')
         break
 
-    # TODO + 0.005 * torch.linalg.norm(z_siren)**2
-    # loss = criterion(glow_patches.squeeze()[:, 4:5, 4:5], true_patches[:, 4:5, 4:5]) #+ 0.005 * torch.linalg.norm(z_siren)
     losses.append(loss.detach().cpu().numpy())
 
     # gradient descent
