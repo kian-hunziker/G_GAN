@@ -11,7 +11,7 @@ from torch.utils.tensorboard import SummaryWriter
 from tqdm import tqdm
 from patchify import unpatchify
 
-from siren import Siren
+from siren import Siren, SimpleMLP
 from utils.lodopab_dataset import PatchedImage
 from utils.checkpoints import load_glow_from_checkpoint
 from utils.get_device import get_device
@@ -23,7 +23,7 @@ import warnings
 
 warnings.simplefilter("ignore", UserWarning)
 
-description = 'fewer averaged patches'
+description = 'MLP instead of SIREN'
 
 # fix random seeds
 torch.manual_seed(0)
@@ -55,7 +55,7 @@ N = 362
 P = 8
 patch_dim = N - P + 1
 first_omega_0 = 30
-hidden_features = 512
+hidden_features = 256
 hidden_layers = 3
 
 # Setup data loader
@@ -74,12 +74,20 @@ print(f'path: {glow_path}')
 glow_model = load_glow_from_checkpoint(glow_path, device=device, arch='lodopab')
 
 # initialize SIREN and optimizer
+'''
 siren = Siren(in_features=2,
               out_features=64,
               hidden_features=hidden_features,
               hidden_layers=hidden_layers,
               outermost_linear=True,
               first_omega_0=first_omega_0).to(device)
+'''
+siren = SimpleMLP(in_features=2,
+                  out_features=64,
+                  hidden_features=hidden_features,
+                  hidden_layers=hidden_layers,
+                  outermost_linear=True,
+                  first_omega_0=first_omega_0).to(device)
 optim = torch.optim.Adam(params=siren.parameters(), lr=lr)
 criterion = F.mse_loss
 
@@ -155,7 +163,7 @@ def save_checkpoint(n_iterations, loss_hist):
 
 
 pixel_offset = 2.0 / N / train_dataset.coord_range
-#k = [-3.5,  -1.5,  0.5,  2.5]
+# k = [-3.5,  -1.5,  0.5,  2.5]
 k = [-3.5, -2.5, -1.5, -0.5, 0.5, 1.5, 2.5, 3.5]
 
 
@@ -179,9 +187,9 @@ def get_coords_average_patching(coordinates: torch.Tensor) -> torch.Tensor:
 
 def compute_averaged_pixel_value(patches: torch.Tensor):
     patches = patches.squeeze()
-    #x_range = [7,  5,  3,  1]
+    # x_range = [7,  5,  3,  1]
     x_range = [7, 6, 5, 4, 3, 2, 1, 0]
-    num_pixels = int(patches.shape[0] / len(x_range)**2)
+    num_pixels = int(patches.shape[0] / len(x_range) ** 2)
     averaged_pixels = torch.zeros(num_pixels)
 
     idx = 0
@@ -192,7 +200,7 @@ def compute_averaged_pixel_value(patches: torch.Tensor):
                 inc = patches[idx][col, row]  # .item()
                 pix += inc
                 idx += 1
-        averaged_pixels[i] = pix / len(x_range)**2
+        averaged_pixels[i] = pix / len(x_range) ** 2
     return averaged_pixels
 
 
