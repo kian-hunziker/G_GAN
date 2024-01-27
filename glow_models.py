@@ -2,15 +2,13 @@ import numpy as np
 import normflows as nf
 
 
-def get_unconditional_glow_model(image_size):
+def get_unconditional_glow_model(image_size, K=16, hidden_channels=256):
     # Define flows
     L = 3
-    K = 16
 
     input_shape = (1, image_size, image_size)
     n_dims = np.prod(input_shape)
     channels = 1
-    hidden_channels = 256
     split_mode = 'channel'
     scale = True
 
