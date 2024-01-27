@@ -32,7 +32,8 @@ LR = 1e-3
 WD = 1e-5
 
 
-model = glow_models.get_lodopab_glow_model()
+#model = glow_models.get_lodopab_glow_model()
+model = glow_models.get_unconditional_glow_model(image_size=8, K=8, hidden_channels=128)
 model = model.to(device)
 
 # ---------------------------------------------------------------------------------------------------------
