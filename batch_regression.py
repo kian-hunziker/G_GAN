@@ -10,8 +10,10 @@ from torchmetrics.functional.image import peak_signal_noise_ratio
 
 from tqdm import tqdm
 
+import utils.siren_utils
 from utils.data_loaders import get_rotated_mnist_dataloader
-from utils.checkpoints import load_gen_disc_from_checkpoint, load_checkpoint, print_checkpoint
+from utils.checkpoints import load_gen_disc_from_checkpoint, load_checkpoint, print_checkpoint, \
+    load_glow_from_checkpoint
 
 
 def plot_comparison(tar: torch.Tensor, approx: torch.Tensor, title: str):
@@ -54,16 +56,21 @@ arg_parser.add_argument('-n_batches', default=None, type=int)
 arg_parser.add_argument('-n_iter', default=300, type=int)
 arg_parser.add_argument('-n_start_pos', default=128, type=int)
 arg_parser.add_argument('-plot', default=False, type=bool)
+arg_parser.add_argument('-glow', default=False, type=bool)
 args = arg_parser.parse_args()
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 # fix random seed
 torch.manual_seed(43)
+GLOW = args.glow
 
 LR = 0.1
 WEIGHT_DECAY = 0.0
-IMG_SIZE = 28
+if GLOW:
+    IMG_SIZE = 16
+else:
+    IMG_SIZE = 28
 
 N_ITERATIONS = args.n_iter
 BATCH_SIZE = args.batch_size
@@ -82,10 +89,16 @@ snrs_list = []
 
 # load generator from specified checkpoint
 checkpoint_path = args.path
-gen, _ = load_gen_disc_from_checkpoint(checkpoint_path, device=device, print_to_console=True)
+if GLOW:
+    gen = load_glow_from_checkpoint(checkpoint_path, arch='unconditional_mnist')
+else:
+    gen, _ = load_gen_disc_from_checkpoint(checkpoint_path, device=device, print_to_console=True)
 checkpoint = load_checkpoint(checkpoint_path)
 print_checkpoint(checkpoint)
-LATENT_DIM = checkpoint['latent_dim']
+if GLOW:
+    LATENT_DIM = 16 * 16
+else:
+    LATENT_DIM = checkpoint['latent_dim']
 gen.eval()
 
 # load test dataset
@@ -96,7 +109,9 @@ test_dataset, loader = get_rotated_mnist_dataloader(root=project_root,
                                                     one_hot_encode=True,
                                                     num_examples=10000,
                                                     num_rotations=0,
-                                                    train=False)
+                                                    train=False,
+                                                    img_size=IMG_SIZE,
+                                                    glow=GLOW)
 
 print('\n' + '-' * 32)
 print(f'STARTING REGRESSION')
@@ -140,7 +155,11 @@ for batch_idx in range(N_BATCHES):
                 end_idx = (i + 1) * N_START_POS
 
                 # compute approximations for current example
-                start_approx = gen(pot_start_vecs[start_idx:end_idx], input_labels[i].unsqueeze(0).repeat_interleave(N_START_POS, dim=0))
+                if GLOW:
+                    z_ = utils.siren_utils.reshape_z_for_glow(pot_start_vecs[start_idx:end_idx], gen)
+                    start_approx, _ = gen.forward_and_log_det(z_)
+                else:
+                    start_approx = gen(pot_start_vecs[start_idx:end_idx], input_labels[i].unsqueeze(0).repeat_interleave(N_START_POS, dim=0))
 
                 # compute loss
                 start_losses = torch.nn.functional.mse_loss(
@@ -169,7 +188,11 @@ for batch_idx in range(N_BATCHES):
     for i in range(N_ITERATIONS):
         optim.zero_grad()
 
-        approx = gen(input_noise, input_labels)
+        if GLOW:
+            z_ = utils.siren_utils.reshape_z_for_glow(input_noise, gen)
+            approx, _ = gen.forward_and_log_det(z_)
+        else:
+            approx = gen(input_noise, input_labels)
         loss = criterion(approx, target_images)
 
         loss.backward()
